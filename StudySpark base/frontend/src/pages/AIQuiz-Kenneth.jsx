@@ -40,6 +40,11 @@ function AIQuizKenneth() {
       return;
     }
 
+    if (!notes.trim() && selectedFile) {
+      setError('File upload is a placeholder for now. Please paste study notes to generate a quiz.');
+      return;
+    }
+
     try {
       setIsLoading(true);
       const quizQuestions = await generateQuiz({
@@ -48,7 +53,7 @@ function AIQuizKenneth() {
       });
       setQuestions(quizQuestions);
     } catch (requestError) {
-      setError('Unable to generate quiz right now. Please check that the backend is running.');
+      setError(requestError.message || 'Unable to generate quiz right now.');
     } finally {
       setIsLoading(false);
     }
