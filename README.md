@@ -1,8 +1,3 @@
-# CA2
-CA2 Stuff
-Group 3 DevOps
-
-
 App Proposal: StudySpark – Adaptive Study Planner
 
 Overview:
@@ -24,10 +19,10 @@ Quiz performance
 Study progress
 Using this information, the app recommends what topic the student should revise next.
 Example:
-Quiz score < 60% → Recommend revising tomorrow.
-Quiz score 60–80% → Recommend revising in 3 days.
-Quiz score > 80% → Recommend revising in 7 days.
-This creates a personalized revision schedule for each student.
+  Quiz score < 60% → Recommend revising tomorrow.
+  Quiz score 60–80% → Recommend revising in 3 days.
+  Quiz score > 80% → Recommend revising in 7 days.
+  This creates a personalized revision schedule for each student.
 
 AI Feature (Additional Feature)
 The AI is used to support learning, not replace the planner.
@@ -41,46 +36,48 @@ The dashboard can also encourage students to use the AI feature with messages li
 "You haven't taken a quiz for your recent study sessions. Testing yourself can improve memory and exam performance."
 
 Target Users:
-Polytechnic students
-University students
-JC students
-Anyone preparing for exams
+  Polytechnic students
+  University students
+  JC students
+  Anyone preparing for exams
 
 Main Features
 1. User Authentication (Izzul)
-Sign up
-Login
-Secure password hashing
-User profile
-2. Study Planner (CRUD) (Yuki)
-Students can:
-Create study sessions
-View study sessions
-Edit study sessions
-Delete study sessions
-Mark study topics as completed
-3. Adaptive Dashboard (Zachary)
-Displays:
-Upcoming study sessions
-Study streak
-Progress
-Completed topics
-Revision recommendations
-Buddy pairing status (if included)
-4. Notifications (Rui Feng)
-Study reminders
-Revision reminders
-Motivational notifications
-AI quiz reminders
-5. AI Quiz Generator (Kenneth)
-Students can generate quizzes based on the topics they have completed.
-The AI generates:
-Multiple-choice questions
-Answers
-Explanations
-6. GitHub & System Design (Ryan)
-Repository management
-Branching
-Pull requests
-System architecture
-Team collaboration
+   Sign up
+   Login
+   Secure password hashing
+   User profile
+   
+3. Study Planner (CRUD) (Yuki)
+   Create study sessions
+   View study sessions
+   Edit study sessions
+   Delete study sessions
+   Mark study topics as completed
+   
+5. Adaptive Dashboard (Zachary)
+   Upcoming study sessions
+   Study streak
+   Progress
+   Completed topics
+   Revision recommendations
+   
+7. Notifications (Rui Feng)
+   Study reminders
+   Revision reminders
+   Motivational notifications
+   AI quiz reminders
+   
+9. AI Quiz Generator (Kenneth)
+    Students can generate quizzes based on the topics they have completed.
+   The AI generates:
+   Multiple-choice questions
+   Answers
+   Explanations
+   
+11. GitHub & System Design (Ryan)
+    Repository management
+    Branching
+    Pull requests
+    System architecture
+    
