@@ -7,8 +7,19 @@
 
 import { apiRequest } from './api.js';
 
-function generateQuizPlaceholder() {
-  return apiRequest('/api/quiz/generate', { method: 'POST' });
+async function generateQuiz({ notes = '', fileName = '' } = {}) {
+  // Gemini API integration will be added here later.
+  // For now, this sends notes to the backend and receives mock quiz questions.
+  const response = await apiRequest('/api/quiz/generate', {
+    method: 'POST',
+    body: JSON.stringify({ notes, fileName })
+  });
+
+  return response.questions;
+}
+
+function generateQuizPlaceholder(payload) {
+  return generateQuiz(payload);
 }
 
 function generateQuizFromDocumentPlaceholder() {
@@ -24,6 +35,7 @@ function getQuizHistoryPlaceholder(userId = 'placeholder-user') {
 }
 
 export {
+  generateQuiz,
   generateQuizFromDocumentPlaceholder,
   generateQuizPlaceholder,
   getQuizHistoryPlaceholder,
