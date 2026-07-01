@@ -1,83 +1,151 @@
-App Proposal: StudySpark – Adaptive Study Planner
+# 📚 StudySpark – Adaptive Study Planner
 
-Overview:
-StudySpark is an Adaptive Study Planner that helps students plan their studies, track their learning progress, and prepare for exams more effectively.
-Unlike a normal study planner that only schedules study sessions, our app adapts to each student's learning progress. Based on completed topics and quiz performance, it recommends what the student should revise next.
+## Overview
 
-The AI is an additional feature, not the main feature.
+**StudySpark** is an adaptive study planner designed to help students plan their studies, track learning progress, and prepare for exams more effectively.
 
-Problem Statement:
-Many students know when they should study, but they don't know whether they actually understand the topics they have studied.
-Most study planners only organize schedules, while AI tools like ChatGPT require students to manually explain what they have learned before generating quizzes.
-Our app combines study planning, progress tracking, and AI-powered revision in one place.
+Unlike traditional study planners that only schedule study sessions, StudySpark adapts to each student's learning progress. Based on completed topics and quiz performance, the application recommends what students should revise next.
 
-Unique Selling Point (USP)
-The main feature is the Adaptive Study Planner.
-Instead of only helping students plan their study schedule, the app also tracks:
-Completed topics
-Quiz performance
-Study progress
-Using this information, the app recommends what topic the student should revise next.
-Example:
-  Quiz score < 60% → Recommend revising tomorrow.
-  Quiz score 60–80% → Recommend revising in 3 days.
-  Quiz score > 80% → Recommend revising in 7 days.
-  This creates a personalized revision schedule for each student.
+> **Note:** AI is an additional supporting feature and is **not** the core functionality of the application.
 
-AI Feature (Additional Feature)
-The AI is used to support learning, not replace the planner.
-After completing a study topic, students can choose to generate an AI quiz.
-The app sends the completed topics to the Gemini API, which generates:
-Multiple-choice questions
-Correct answers
-Short explanations
-The dashboard can also encourage students to use the AI feature with messages like:
-"You've completed 3 topics today. Try an AI quiz to test your understanding!"
-"You haven't taken a quiz for your recent study sessions. Testing yourself can improve memory and exam performance."
+---
 
-Target Users:
-  Polytechnic students
-  University students
-  JC students
-  Anyone preparing for exams
+# Problem Statement
 
-Main Features
-1. User Authentication (Izzul)
-   Sign up
-   Login
-   Secure password hashing
-   User profile
-   
-3. Study Planner (CRUD) (Yuki)
-   Create study sessions
-   View study sessions
-   Edit study sessions
-   Delete study sessions
-   Mark study topics as completed
-   
-5. Adaptive Dashboard (Zachary)
-   Upcoming study sessions
-   Study streak
-   Progress
-   Completed topics
-   Revision recommendations
-   
-7. Notifications (Rui Feng)
-   Study reminders
-   Revision reminders
-   Motivational notifications
-   AI quiz reminders
-   
-9. AI Quiz Generator (Kenneth)
-    Students can generate quizzes based on the topics they have completed.
-   The AI generates:
-   Multiple-choice questions
-   Answers
-   Explanations
-   
-11. GitHub & System Design (Ryan)
-    Repository management
-    Branching
-    Pull requests
-    System architecture
-    
+Many students know when they should study but struggle to determine whether they truly understand the topics they have learned.
+
+Existing study planners mainly focus on scheduling, while AI tools such as ChatGPT require students to manually explain what they have learned before generating quizzes.
+
+StudySpark solves this by combining:
+
+- 📅 Study planning
+- 📈 Progress tracking
+- 🤖 AI-powered revision support
+
+into a single application.
+
+---
+
+# Unique Selling Point (USP)
+
+The primary feature of StudySpark is its **Adaptive Study Planner**.
+
+Instead of only creating study schedules, the application continuously tracks:
+
+- ✅ Completed topics
+- 📝 Quiz performance
+- 📊 Overall study progress
+
+Using this information, StudySpark automatically recommends when a student should revise a topic.
+
+## Revision Recommendation Rules
+
+| Quiz Score | Recommended Revision |
+|------------|----------------------|
+| Below 60% | Revise tomorrow |
+| 60% – 80% | Revise in 3 days |
+| Above 80% | Revise in 7 days |
+
+This creates a personalised revision schedule tailored to each student's learning performance.
+
+---
+
+# AI Feature (Supporting Feature)
+
+The AI feature is designed to **support learning**, not replace the study planner.
+
+After completing a study topic, students can choose to generate an AI-powered quiz.
+
+Using the **Gemini API**, the application sends the completed topic(s) to generate:
+
+- Multiple-choice questions
+- Correct answers
+- Short explanations
+
+## Smart Dashboard Prompts
+
+The dashboard can also encourage students to test themselves by displaying messages such as:
+
+> "You've completed **3 topics today**. Try an AI quiz to test your understanding!"
+
+> "You haven't taken a quiz for your recent study sessions. Testing yourself can improve memory and exam performance."
+
+---
+
+# Target Users
+
+StudySpark is designed for:
+
+- 🎓 Polytechnic students
+- 🎓 University students
+- 📖 Junior College (JC) students
+- 📝 Anyone preparing for examinations
+
+---
+
+# Feature Breakdown
+
+## 1. User Authentication *(Izzul)*
+
+- User Registration
+- User Login
+- Secure Password Hashing
+- User Profile
+
+---
+
+## 2. Study Planner (CRUD) *(Yuki)*
+
+- Create Study Sessions
+- View Study Sessions
+- Edit Study Sessions
+- Delete Study Sessions
+- Mark Topics as Completed
+
+---
+
+## 3. Adaptive Dashboard *(Zachary)*
+
+Displays:
+
+- Upcoming Study Sessions
+- Study Streak
+- Learning Progress
+- Completed Topics
+- Adaptive Revision Recommendations
+
+---
+
+## 4. Notifications *(Rui Feng)*
+
+Provides:
+
+- 📅 Study Reminders
+- 🔁 Revision Reminders
+- 💪 Motivational Notifications
+- 🤖 AI Quiz Reminders
+
+---
+
+## 5. AI Quiz Generator *(Kenneth)*
+
+Students can generate quizzes based on completed study topics.
+
+The AI generates:
+
+- Multiple-choice Questions
+- Correct Answers
+- Explanations
+
+---
+
+## 6. GitHub & System Design *(Ryan)*
+
+Responsible for:
+
+- Repository Management
+- Git Branching Strategy
+- Pull Requests
+- Overall System Architecture
+
+---
