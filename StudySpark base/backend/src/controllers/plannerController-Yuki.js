@@ -1,39 +1,106 @@
 /*
   Owner: Yuki
   Feature: Study Planner CRUD
-  Status: Base placeholder only. Feature logic not implemented yet.
-  Description: This file is reserved for Yuki's Study Planner CRUD feature.
+  Status: Implemented for Phase 1.
+  Description: Backend planner controller using in-memory storage until a database is added.
 */
 
+const plannerItems = [];
+
 function getPlannerPlaceholder(req, res) {
-  // Future database logic: read study planner items for the current user.
   res.json({
-    message: 'Study Planner list route placeholder. Yuki will implement this feature.',
-    data: { plannerItems: [] }
+    message: 'Study Planner sessions fetched successfully.',
+    data: { plannerItems }
   });
 }
 
 function createPlannerPlaceholder(req, res) {
-  // Future database logic: insert a new study planner item.
-  res.json({
-    message: 'Study Planner create route placeholder. Yuki will implement this feature.',
-    data: { plannerItem: null }
+  const { title, subject, description, date, completed, duration } = req.body || {};
+
+  if (!title || typeof title !== 'string' || !title.trim()) {
+    return res.status(400).json({
+      message: 'A study session title is required.'
+    });
+  }
+
+  const parsedDuration = Number(duration);
+
+  const newPlannerItem = {
+    id: `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+    title: title.trim(),
+    subject: subject ? String(subject).trim() : 'General',
+    description: description ? String(description).trim() : '',
+    date: date ? String(date) : '',
+    completed: Boolean(completed),
+    duration: Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : 45,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+
+  plannerItems.push(newPlannerItem);
+
+  res.status(201).json({
+    message: 'Study session created successfully.',
+    data: { plannerItem: newPlannerItem }
   });
 }
 
 function updatePlannerPlaceholder(req, res) {
-  // Future database logic: update the requested study planner item by id.
+  const plannerItem = plannerItems.find((item) => item.id === req.params.id);
+  if (!plannerItem) {
+    return res.status(404).json({
+      message: 'Study session not found.'
+    });
+  }
+
+  const { title, subject, description, date, completed, duration } = req.body || {};
+
+  if (title !== undefined) {
+    plannerItem.title = String(title).trim() || plannerItem.title;
+  }
+
+  if (subject !== undefined) {
+    plannerItem.subject = String(subject).trim() || 'General';
+  }
+
+  if (description !== undefined) {
+    plannerItem.description = String(description).trim();
+  }
+
+  if (date !== undefined) {
+    plannerItem.date = String(date);
+  }
+
+  if (completed !== undefined) {
+    plannerItem.completed = Boolean(completed);
+  }
+
+  if (duration !== undefined) {
+    const parsedDuration = Number(duration);
+    plannerItem.duration = Number.isFinite(parsedDuration) && parsedDuration > 0 ? parsedDuration : plannerItem.duration;
+  }
+
+  plannerItem.updatedAt = new Date().toISOString();
+
   res.json({
-    message: 'Study Planner update route placeholder. Yuki will implement this feature.',
-    data: { plannerItem: null, id: req.params.id }
+    message: 'Study session updated successfully.',
+    data: { plannerItem }
   });
 }
 
 function deletePlannerPlaceholder(req, res) {
-  // Future database logic: delete the requested study planner item by id.
+  const index = plannerItems.findIndex((item) => item.id === req.params.id);
+  if (index === -1) {
+    return res.status(404).json({
+      message: 'Study session not found.'
+    });
+  }
+
+  plannerItems.splice(index, 1);
+
   res.json({
-    message: 'Study Planner delete route placeholder. Yuki will implement this feature.',
-    data: { deleted: false, id: req.params.id }
+    message: 'Study session deleted successfully.',
+    data: { deleted: true, id: req.params.id }
   });
 }
 
