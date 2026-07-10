@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+
+<html>
+
+<head>
+
+    <title>Study Sessions</title>
+
+    <style>
+        body {
+            font-family: Arial;
+            padding: 20px;
+        }
+
+        .card {
+            border: 1px solid #ddd;
+            padding: 15px;
+            margin-bottom: 15px;
+            border-radius: 8px;
+        }
+    </style>
+
+</head>
+
+<body>
+
+    <h1>Study Planner</h1>
+
+    /sessions/search">
+
+    <input type="text" name="q" placeholder="Search study sessions">
+
+    <button type="submit">
+
+        Search
+
+    </button>
+
+    </form>
+
+    <hr>
+
+    <h2>Create Session</h2>
+
+    /sessions/add
+
+    <input type="text" name="topic" placeholder="Topic" required>
+
+    <br><br>
+
+    <input type="text" name="subject" placeholder="Subject">
+
+    <br><br>
+
+    <textarea name="description" placeholder="Description"></textarea>
+
+    <br><br>
+
+    <input type="datetime-local" name="study_date" required>
+
+    <br><br>
+
+    <input type="number" name="duration_minutes" placeholder="Duration" value="60">
+
+    <br><br>
+
+    <button type="submit">
+
+        Create Session
+
+    </button>
+
+    </form>
+
+    <hr>
+
+    <h2>All Sessions</h2>
+
+    <% sessions.forEach(session=> { %>
+
+        <div class="card">
+
+            <h3>
+
+                <%= session.topic %>
+
+            </h3>
+
+            <p>
+
+                Subject:
+                <%= session.subject %>
+
+            </p>
+
+            <p>
+
+                Description:
+                <%= session.description %>
+
+            </p>
+
+            <p>
+
+                Duration:
+                <%= session.duration_minutes %> mins
+
+            </p>
+
+            <p>
+
+                Status:
+
+                <%= session.completed ? 'Completed' : 'Pending' %>
+
+            </p>
+
+            /<%= session.session_id %>"
+                method="POST"
+                >
+
+                <button>
+
+                    Mark Complete
+
+                </button>
+
+                </form>
+
+                /sessions/delete/<%= session.session_id %>
+
+                    <button>
+
+                        Delete
+
+                    </button>
+
+                    </form>
+
+        </div>
+
+        <% }) %>
+
+</body>
+
+</html>
