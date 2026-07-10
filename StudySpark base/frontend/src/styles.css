@@ -91,6 +91,110 @@ a {
   margin: 0;
 }
 
+.notification-summary {
+  margin: 20px 0;
+}
+
+.notification-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+  margin-bottom: 24px;
+}
+
+.notification-card {
+  background: #f8fbff;
+  border: 1px solid #dbe3ef;
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.notification-card h2 {
+  font-size: 1.15rem;
+  margin: 12px 0 8px;
+}
+
+.notification-category {
+  color: #2563eb;
+  display: inline-block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.notification-scheduled {
+  color: #4b5563;
+  font-size: 0.95rem;
+  margin-top: 12px;
+}
+
+.notification-due {
+  color: #b91c1c;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin-top: 8px;
+}
+
+.notification-form {
+  display: grid;
+  gap: 14px;
+  margin-top: 16px;
+}
+
+.notification-form h2 {
+  font-size: 1.2rem;
+  margin: 0 0 8px;
+}
+
+.notification-form label {
+  display: grid;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.notification-form input,
+.notification-form textarea,
+.notification-form select {
+  border: 1px solid #d1d9e6;
+  border-radius: 10px;
+  font: inherit;
+  padding: 10px 12px;
+}
+
+.notification-form textarea {
+  min-height: 96px;
+  resize: vertical;
+}
+
+.notification-form button {
+  align-self: start;
+  background: #2563eb;
+  border: none;
+  border-radius: 10px;
+  color: #ffffff;
+  cursor: pointer;
+  font: inherit;
+  padding: 12px 18px;
+}
+
+.notification-form button:hover {
+  background: #1d4ed8;
+}
+
+.error-text,
+.success-text {
+  font-size: 0.98rem;
+  margin: 12px 0;
+}
+
+.error-text {
+  color: #b91c1c;
+}
+
+.success-text {
+  color: #047857;
+}
+
 .home-page {
   display: grid;
   gap: 32px;

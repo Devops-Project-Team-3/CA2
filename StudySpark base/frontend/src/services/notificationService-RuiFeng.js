@@ -1,18 +1,21 @@
 /*
   Owner: Rui Feng
   Feature: Notifications
-  Status: Base placeholder only. Feature logic not implemented yet.
-  Description: This file is reserved for Rui Feng's Notifications feature.
+  Status: Implemented
+  Description: Fetch and create study notifications from the backend.
 */
 
 import { apiRequest } from './api.js';
 
-function getNotificationsPlaceholder() {
+function getNotifications() {
   return apiRequest('/api/notifications');
 }
 
-function createNotificationPlaceholder() {
-  return apiRequest('/api/notifications', { method: 'POST' });
+function createNotification(notification) {
+  return apiRequest('/api/notifications', {
+    method: 'POST',
+    body: JSON.stringify(notification)
+  });
 }
 
-export { createNotificationPlaceholder, getNotificationsPlaceholder };
+export { createNotification, getNotifications };
