@@ -1,5 +1,15 @@
 # 📚 StudySpark – Adaptive Study Planner
 
+PORT=3000
+
+DB_HOST=[database host]
+
+DB_USER=[database username]
+
+DB_PASSWORD=[database password]
+
+DB_NAME=studyplanner
+
 ## Overview
 
 **StudySpark** is an adaptive study planner designed to help students plan their studies, track learning progress, and prepare for exams more effectively.
