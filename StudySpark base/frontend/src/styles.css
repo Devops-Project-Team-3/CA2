@@ -29,6 +29,23 @@
   --warning-text: #c2410c;
 }
 
+/* Study Planner and search feature */
+.planner-page { display: grid; gap: 24px; }
+.planner-header h1 { font-size: 2.4rem; margin: 0 0 8px; }
+.planner-header p { color: #475569; font-size: 1rem; margin: 0; }
+.planner-grid { display: grid; gap: 24px; grid-template-columns: minmax(280px, 360px) 1fr; }
+.planner-form, .planner-list { background: #fff; border: 1px solid #e2e8f0; border-radius: 20px; box-shadow: 0 18px 40px rgba(15, 23, 42, .05); }
+.planner-form label { display: block; margin-bottom: 16px; font-weight: 600; color: #334155; }
+.focus-mode-overlay { align-items: center; background: #fff; display: flex; min-height: 100vh; width: 100vw; margin-left: calc(50% - 50vw); padding: 24px; }
+.focus-card { border-radius: 24px; margin: 0 auto; max-width: 760px; width: 100%; box-shadow: 0 20px 50px rgba(15, 23, 42, .12); }
+.calendar-day-button { align-items: center; background: #fff; border: 1px solid #e2e8f0; border-radius: 14px; color: #0f172a; display: flex; flex-direction: column; gap: 4px; min-height: 78px; padding: 10px 6px; transition: transform 160ms ease, box-shadow 160ms ease; }
+.calendar-day-button:hover { transform: translateY(-1px); box-shadow: 0 8px 18px rgba(15, 23, 42, .08); }
+.calendar-day-button.today { border-color: #4f46e5; background: #eef2ff; color: #1e1b4b; }
+.calendar-day-button.selected { border-color: #4f46e5; box-shadow: inset 0 0 0 2px #4f46e5; background: #ede9fe; color: #4c1d95; }
+.calendar-day-number { color: inherit; font-weight: 700; }
+.calendar-day-count { background: #4f46e5; border-radius: 999px; color: #fff; font-size: .8rem; padding: 2px 8px; }
+@media (max-width: 980px) { .planner-grid { grid-template-columns: 1fr; } }
+
 :root[data-theme="dark"] {
   color: #e6edf7;
   background: #101725;

@@ -1,31 +1,42 @@
 /*
   Owner: Yuki
   Feature: Study Planner CRUD
-  Status: Base placeholder only. Feature logic not implemented yet.
-  Description: This file is reserved for Yuki's Study Planner CRUD feature.
+  Status: Implemented for Phase 1.
+  Description: Frontend planner service for create/read/update/delete study sessions.
 */
 
 import { apiRequest } from './api.js';
 
-function getPlannerPlaceholder() {
-  return apiRequest('/api/planner');
+function getPlannerItems(query = '') {
+  const searchParams = new URLSearchParams();
+  if (query.trim()) searchParams.set('q', query.trim());
+  const search = searchParams.toString();
+  return apiRequest(`/api/planner${search ? `?${search}` : ''}`);
 }
 
-function createPlannerPlaceholder() {
-  return apiRequest('/api/planner', { method: 'POST' });
+function createPlannerItem(sessionData) {
+  return apiRequest('/api/planner', {
+    method: 'POST',
+    body: JSON.stringify(sessionData)
+  });
 }
 
-function updatePlannerPlaceholder(id = 'placeholder-id') {
-  return apiRequest(`/api/planner/${id}`, { method: 'PUT' });
+function updatePlannerItem(id, sessionData) {
+  return apiRequest(`/api/planner/${id}`, {
+    method: 'PUT',
+    body: JSON.stringify(sessionData)
+  });
 }
 
-function deletePlannerPlaceholder(id = 'placeholder-id') {
-  return apiRequest(`/api/planner/${id}`, { method: 'DELETE' });
+function deletePlannerItem(id) {
+  return apiRequest(`/api/planner/${id}`, {
+    method: 'DELETE'
+  });
 }
 
 export {
-  createPlannerPlaceholder,
-  deletePlannerPlaceholder,
-  getPlannerPlaceholder,
-  updatePlannerPlaceholder
+  createPlannerItem,
+  deletePlannerItem,
+  getPlannerItems,
+  updatePlannerItem
 };
