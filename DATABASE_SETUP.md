@@ -15,7 +15,7 @@ Install MySQL locally, or run it using your team's preferred Docker setup later.
 
 Create a database called:
 
-```text
+
 studyspark
 ```
 
@@ -23,7 +23,7 @@ studyspark
 
 Run this schema file in MySQL:
 
-```text
+
 StudySpark base/backend/src/database/schema.sql
 ```
 
@@ -31,7 +31,7 @@ StudySpark base/backend/src/database/schema.sql
 
 Create this file locally:
 
-```text
+
 StudySpark base/backend/.env
 ```
 
@@ -60,7 +60,7 @@ npm run dev
 
 Open:
 
-```text
+
 http://localhost:5000/api/database/test
 http://localhost:5000/api/database/tables
 ```
