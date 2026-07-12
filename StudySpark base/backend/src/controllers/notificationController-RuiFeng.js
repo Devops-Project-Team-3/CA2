@@ -1,23 +1,39 @@
 /*
   Owner: Rui Feng
   Feature: Notifications
-  Status: Base placeholder only. Feature logic not implemented yet.
-  Description: This file is reserved for Rui Feng's Notifications feature.
+  Status: Implemented
+  Description: Controller logic for listing and creating study notifications.
 */
 
+import { createNotification, getNotifications } from '../services/notificationService-RuiFeng.js';
+
 function getNotificationsPlaceholder(req, res) {
-  // Future database logic: read notifications for the current user.
   res.json({
-    message: 'Notifications list route placeholder. Rui Feng will implement this feature.',
-    data: { notifications: [] }
+    message: 'Notifications loaded successfully.',
+    data: { notifications: getNotifications() }
   });
 }
 
 function createNotificationPlaceholder(req, res) {
-  // Future database logic: insert or schedule a notification record.
-  res.json({
-    message: 'Notifications create route placeholder. Rui Feng will implement this feature.',
-    data: { notification: null }
+  const { category, title, message, scheduled, scheduledAt } = req.body;
+
+  if (!title || !message) {
+    return res.status(400).json({
+      message: 'Title and message are required to create a notification.'
+    });
+  }
+
+  const notification = createNotification({
+    category,
+    title,
+    message,
+    scheduled,
+    scheduledAt
+  });
+
+  res.status(201).json({
+    message: 'Notification created successfully.',
+    data: { notification }
   });
 }
 

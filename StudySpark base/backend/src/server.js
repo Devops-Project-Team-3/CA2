@@ -7,6 +7,7 @@ import dashboardRoutesZachary from './routes/dashboardRoutes-Zachary.js';
 import notificationRoutesRuiFeng from './routes/notificationRoutes-RuiFeng.js';
 import plannerRoutesYuki from './routes/plannerRoutes-Yuki.js';
 import quizRoutesKenneth from './routes/quizRoutes-Kenneth.js';
+import { processScheduledNotifications } from './services/notificationService-RuiFeng.js';
 
 dotenv.config();
 
@@ -27,6 +28,16 @@ app.use('/api/dashboard', dashboardRoutesZachary);
 app.use('/api/notifications', notificationRoutesRuiFeng);
 app.use('/api/quiz', quizRoutesKenneth);
 
+function startNotificationScheduler() {
+  setInterval(() => {
+    const dueNotifications = processScheduledNotifications();
+    if (dueNotifications.length > 0) {
+      console.log(`StudySpark scheduler: ${dueNotifications.length} reminder(s) are now due.`);
+    }
+  }, 30 * 1000);
+}
+
 app.listen(PORT, () => {
   console.log(`StudySpark backend running on port ${PORT}`);
+  startNotificationScheduler();
 });
