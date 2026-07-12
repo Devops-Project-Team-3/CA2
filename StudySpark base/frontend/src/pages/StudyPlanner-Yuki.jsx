@@ -120,8 +120,15 @@ function StudyPlannerYuki() {
     () => sessions.filter((session) => session.completed).reduce((total, session) => total + Number(session.duration || 0), 0),
     [sessions]
   );
-  const progressPercent = totalPlannedMinutes === 0 ? 0 : Math.round((totalCompletedMinutes / totalPlannedMinutes) * 100);
-
+  const progressPercent =
+    totalPlannedMinutes === 0
+      ? 0
+      : Math.min(
+        100,
+        Math.round(
+          (totalCompletedMinutes / totalPlannedMinutes) * 100
+        )
+      );
   const sessionsByDate = useMemo(() => {
     return sessions.reduce((groupedSessions, session) => {
       if (!session.date) {
@@ -376,36 +383,41 @@ function StudyPlannerYuki() {
         <p>Manage your study sessions, track progress, and stay focused with built-in timers.</p>
       </header>
 
-      <div className="card shadow-sm mb-4">
-        <div className="card-body">
-          <div className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-3">
-            <div>
-              <h2 className="h4 mb-2">Study Goal Progress</h2>
-              <p className="text-muted mb-0">
-                Completed: {totalCompletedMinutes} / {totalPlannedMinutes} minutes
-              </p>
-            </div>
-            <div className="text-md-end">
-              <div className="h2 mb-1">{progressPercent}%</div>
-              <p className="mb-0 text-muted">
-                {progressPercent >= 100
-                  ? '🎉 Congratulations! You completed today\'s study goal!'
-                  : 'Keep going! You\'re making good progress.'}
-              </p>
-            </div>
+      <section className="goal-progress-card">
+        <div className="goal-progress-top">
+          <div>
+            <h2>Study Goal Progress</h2>
+
+            <p>
+              Completed: {totalCompletedMinutes} / {totalPlannedMinutes} minutes
+            </p>
           </div>
-          <div className="progress mt-3" style={{ height: '14px' }}>
-            <div
-              className="progress-bar bg-success"
-              role="progressbar"
-              style={{ width: `${progressPercent}%` }}
-              aria-valuenow={progressPercent}
-              aria-valuemin="0"
-              aria-valuemax="100"
-            />
+
+          <div className="goal-progress-summary">
+            <strong>{progressPercent}%</strong>
+
+            <p>
+              {progressPercent >= 100
+                ? '🎉 Congratulations! You completed today\'s study goal!'
+                : 'Keep going! You\'re making good progress.'}
+            </p>
           </div>
         </div>
-      </div>
+
+        <div
+          className="goal-progress-track"
+          role="progressbar"
+          aria-label="Study goal progress"
+          aria-valuenow={progressPercent}
+          aria-valuemin="0"
+          aria-valuemax="100"
+        >
+          <div
+            className="goal-progress-fill"
+            style={{ width: `${progressPercent}%` }}
+          />
+        </div>
+      </section>
 
       <div className="planner-grid">
         <form className="planner-form card shadow-sm" onSubmit={handleSubmit}>
