@@ -4,6 +4,9 @@ import { BrowserRouter } from 'react-router-dom';
 import App from './App.jsx';
 import './styles.css';
 
+const savedTheme = localStorage.getItem('studyspark_theme');
+document.documentElement.dataset.theme = savedTheme || 'light';
+
 createRoot(document.getElementById('root')).render(
   <React.StrictMode>
     <BrowserRouter>
