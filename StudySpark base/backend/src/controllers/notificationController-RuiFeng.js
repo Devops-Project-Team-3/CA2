@@ -24,11 +24,15 @@ async function getNotificationsPlaceholder(req, res) {
 }
 
 async function createNotificationPlaceholder(req, res) {
-  const { category, title, message, scheduled, scheduledAt } = req.body;
+  const category = req.body?.category;
+  const title = typeof req.body?.title === 'string' ? req.body.title.trim() : '';
+  const message = typeof req.body?.message === 'string' ? req.body.message.trim() : '';
+  const scheduled = req.body?.scheduled;
+  const scheduledAt = typeof req.body?.scheduledAt === 'string' ? req.body.scheduledAt.trim() : '';
 
-  if (!title || !message) {
+  if (!title || !message || !scheduledAt) {
     return res.status(400).json({
-      message: 'Title and message are required to create a notification.'
+      message: 'Title, message, and scheduled date/time are required to create a notification.'
     });
   }
 
