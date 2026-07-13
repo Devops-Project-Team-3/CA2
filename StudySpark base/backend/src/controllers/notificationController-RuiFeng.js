@@ -7,14 +7,23 @@
 
 import { createNotification, getNotifications } from '../services/notificationService-RuiFeng.js';
 
-function getNotificationsPlaceholder(req, res) {
-  res.json({
-    message: 'Notifications loaded successfully.',
-    data: { notifications: getNotifications() }
-  });
+async function getNotificationsPlaceholder(req, res) {
+  try {
+    const notifications = await getNotifications();
+
+    res.json({
+      message: 'Notifications loaded successfully.',
+      data: { notifications }
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Unable to load notifications.',
+      error: error.message
+    });
+  }
 }
 
-function createNotificationPlaceholder(req, res) {
+async function createNotificationPlaceholder(req, res) {
   const { category, title, message, scheduled, scheduledAt } = req.body;
 
   if (!title || !message) {
@@ -23,18 +32,26 @@ function createNotificationPlaceholder(req, res) {
     });
   }
 
-  const notification = createNotification({
-    category,
-    title,
-    message,
-    scheduled,
-    scheduledAt
-  });
+  try {
+    const notification = await createNotification({
+      category,
+      title,
+      message,
+      scheduled,
+      scheduledAt,
+      userId: req.user?.id
+    });
 
-  res.status(201).json({
-    message: 'Notification created successfully.',
-    data: { notification }
-  });
+    res.status(201).json({
+      message: 'Notification created successfully.',
+      data: { notification }
+    });
+  } catch (error) {
+    res.status(500).json({
+      message: 'Unable to create notification.',
+      error: error.message
+    });
+  }
 }
 
 export { createNotificationPlaceholder, getNotificationsPlaceholder };
