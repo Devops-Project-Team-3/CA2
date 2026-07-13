@@ -16,11 +16,19 @@ async function apiRequest(path, options = {}) {
     ...options
   });
 
-  if (!response.ok) {
-    throw new Error(`Placeholder API request failed: ${response.status}`);
+  let payload = null;
+  try {
+    payload = await response.json();
+  } catch {
+    payload = null;
   }
 
-  return response.json();
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || `Placeholder API request failed: ${response.status}`;
+    throw new Error(message);
+  }
+
+  return payload;
 }
 
 export { API_BASE_URL, apiRequest };

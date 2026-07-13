@@ -62,11 +62,15 @@ async function createNotification(notification) {
     throw new Error('Database configuration is missing. Set DB_HOST, DB_PORT, DB_USER, DB_PASSWORD and DB_NAME.');
   }
 
-  const title = notification.title;
-  const message = notification.message;
+  const title = (notification.title || '').trim();
+  const message = (notification.message || '').trim();
   const category = notification.category || 'Study Reminder';
   const scheduledAt = notification.scheduledAt || null;
   const userId = notification.userId || (await getOrCreateDefaultUserId());
+
+  if (!title || !message || !scheduledAt) {
+    throw new Error('Title, message, and scheduled date/time are required.');
+  }
 
   const result = await query(
     `INSERT INTO notifications (user_id, title, message, type, priority, scheduled_for, is_read)
