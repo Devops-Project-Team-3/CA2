@@ -29,10 +29,14 @@ app.use('/api/notifications', notificationRoutesRuiFeng);
 app.use('/api/quiz', quizRoutesKenneth);
 
 function startNotificationScheduler() {
-  setInterval(() => {
-    const dueNotifications = processScheduledNotifications();
-    if (dueNotifications.length > 0) {
-      console.log(`StudySpark scheduler: ${dueNotifications.length} reminder(s) are now due.`);
+  setInterval(async () => {
+    try {
+      const dueNotifications = await processScheduledNotifications();
+      if (dueNotifications.length > 0) {
+        console.log(`StudySpark scheduler: ${dueNotifications.length} reminder(s) are now due.`);
+      }
+    } catch (error) {
+      console.error('StudySpark scheduler failed:', error.message);
     }
   }, 30 * 1000);
 }

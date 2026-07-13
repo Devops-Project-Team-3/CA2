@@ -263,6 +263,32 @@ input {
   margin: 20px 0;
 }
 
+.popup-overlay {
+  position: fixed;
+  right: 20px;
+  top: 20px;
+  z-index: 50;
+}
+
+.popup-card {
+  background: var(--card);
+  border: 1px solid var(--border-strong);
+  border-left: 5px solid var(--accent);
+  border-radius: 12px;
+  box-shadow: var(--shadow);
+  max-width: 320px;
+  padding: 16px 18px;
+}
+
+.popup-card h3 {
+  margin: 0 0 6px;
+}
+
+.popup-card p {
+  color: var(--muted);
+  margin: 0;
+}
+
 .notification-grid {
   display: grid;
   gap: 16px;

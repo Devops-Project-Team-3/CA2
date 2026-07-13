@@ -2,77 +2,119 @@
   Owner: Rui Feng
   Feature: Notifications
   Status: Implemented
-  Description: In-memory notifications service for study reminders and alerts.
+  Description: MySQL-backed notifications service for study reminders and alerts.
 */
 
-const notifications = [
-  {
-    id: 1,
-    category: 'Study Reminder',
-    title: 'Finish English reading session',
-    message: 'Review Chapter 4 and complete the reading notes before tomorrow.',
-    scheduled: 'Today at 5:00 PM',
-    scheduledAt: new Date(Date.now() + 5 * 60 * 1000).toISOString(),
-    isDue: false
-  },
-  {
-    id: 2,
-    category: 'Revision Reminder',
-    title: 'Revise math formulas',
-    message: 'Spend 30 minutes revising last week’s formula sheet for algebra and geometry.',
-    scheduled: 'Tomorrow at 9:00 AM',
-    scheduledAt: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString(),
-    isDue: false
-  },
-  {
-    id: 3,
-    category: 'AI Quiz Reminder',
-    title: 'Try a quick AI quiz',
-    message: 'Test your knowledge with a short AI-generated quiz after your study session.',
-    scheduled: 'Today at 7:30 PM',
-    scheduledAt: new Date(Date.now() + 15 * 60 * 1000).toISOString(),
-    isDue: false
-  }
-];
+import { hasDatabaseConfig, query } from '../config/database.js';
 
-function getNotifications() {
-  return notifications;
+async function getOrCreateDefaultUserId() {
+  const existingUsers = await query('SELECT id FROM users ORDER BY id LIMIT 1');
+
+  if (existingUsers[0]?.id) {
+    return existingUsers[0].id;
+  }
+
+  const result = await query(
+    'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
+    ['Default User', 'default@example.com', '$2a$10$placeholderhash']
+  );
+
+  return result.insertId;
 }
 
-function createNotification(notification) {
-  const scheduledAt = notification.scheduledAt
-    ? new Date(notification.scheduledAt).toISOString()
-    : new Date().toISOString();
+async function getNotifications() {
+  if (!hasDatabaseConfig()) {
+    return [];
+  }
 
-  const newNotification = {
-    id: Date.now(),
-    category: notification.category || 'Study Reminder',
-    title: notification.title,
-    message: notification.message,
-    scheduled: notification.scheduled || scheduledAt,
-    scheduledAt,
+  const rows = await query(`
+    SELECT
+      id,
+      title,
+      message,
+      type,
+      priority,
+      scheduled_for AS scheduledFor,
+      is_read AS isRead,
+      created_at AS createdAt
+    FROM notifications
+    ORDER BY created_at DESC
+  `);
+
+  return rows.map((row) => ({
+    id: row.id,
+    category: row.type || 'Study Reminder',
+    title: row.title,
+    message: row.message,
+    scheduled: row.scheduledFor
+      ? new Date(row.scheduledFor).toLocaleString()
+      : null,
+    scheduledAt: row.scheduledFor
+      ? new Date(row.scheduledFor).toISOString()
+      : null,
+    isDue: false,
+    createdAt: row.createdAt
+  }));
+}
+
+async function createNotification(notification) {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database configuration is missing. Set DB_HOST, DB_PORT, DB_USER, DB_PASSWORD and DB_NAME.');
+  }
+
+  const title = notification.title;
+  const message = notification.message;
+  const category = notification.category || 'Study Reminder';
+  const scheduledAt = notification.scheduledAt || null;
+  const userId = notification.userId || (await getOrCreateDefaultUserId());
+
+  const result = await query(
+    `INSERT INTO notifications (user_id, title, message, type, priority, scheduled_for, is_read)
+     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    [userId, title, message, category, notification.priority || 'normal', scheduledAt ? new Date(scheduledAt) : null, false]
+  );
+
+  return {
+    id: result.insertId,
+    category,
+    title,
+    message,
+    scheduled: scheduledAt ? new Date(scheduledAt).toLocaleString() : null,
+    scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
     isDue: false
   };
-
-  notifications.unshift(newNotification);
-  return newNotification;
 }
 
-function processScheduledNotifications() {
-  const now = Date.now();
-  const dueNotifications = notifications.filter((notification) => {
-    return (
-      !notification.isDue &&
-      notification.scheduledAt &&
-      Date.parse(notification.scheduledAt) <= now
+async function processScheduledNotifications() {
+  if (!hasDatabaseConfig()) {
+    return [];
+  }
+
+  try {
+    const now = new Date();
+    const rows = await query(
+      `SELECT id FROM notifications
+       WHERE is_read = FALSE
+         AND scheduled_for IS NOT NULL
+         AND scheduled_for <= ?`,
+      [now]
     );
-  });
 
-  dueNotifications.forEach((notification) => {
-    notification.isDue = true;
-  });
+    if (!rows.length) {
+      return [];
+    }
 
-  return dueNotifications;
+    const ids = rows.map((row) => row.id);
+    await query(
+      `UPDATE notifications SET is_read = TRUE WHERE id IN (${ids.map(() => '?').join(',')})`,
+      ids
+    );
+
+    return ids;
+  } catch (error) {
+    console.error('Unable to process scheduled notifications:', error.message);
+    return [];
+  }
 }
 
 export { createNotification, getNotifications, processScheduledNotifications };
