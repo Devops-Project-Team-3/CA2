@@ -8,11 +8,34 @@
 import { useEffect, useState } from 'react';
 import { createNotification, getNotifications } from '../services/notificationService-RuiFeng.js';
 
+function getStoredPopupIds() {
+  if (typeof window === 'undefined') {
+    return [];
+  }
+
+  try {
+    const rawValue = window.sessionStorage.getItem('shown-notification-popups');
+    return rawValue ? JSON.parse(rawValue) : [];
+  } catch {
+    return [];
+  }
+}
+
+function saveStoredPopupIds(ids) {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  window.sessionStorage.setItem('shown-notification-popups', JSON.stringify(ids));
+}
+
 function NotificationsRuiFeng() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [popup, setPopup] = useState(null);
+  const [shownPopupIds, setShownPopupIds] = useState(() => getStoredPopupIds());
   const [validationErrors, setValidationErrors] = useState({});
   const [formState, setFormState] = useState({
     category: 'Study Reminder',
@@ -37,6 +60,20 @@ function NotificationsRuiFeng() {
 
         setNotifications(loadedNotifications);
         setLoading(false);
+
+        const dueNotification = loadedNotifications.find(
+          (notification) => notification.isDue && !shownPopupIds.includes(notification.id)
+        );
+
+        if (dueNotification) {
+          setPopup({
+            title: 'Reminder due',
+            message: `${dueNotification.title} is due now.`
+          });
+          const updatedIds = [...shownPopupIds, dueNotification.id];
+          setShownPopupIds(updatedIds);
+          saveStoredPopupIds(updatedIds);
+        }
       })
       .catch(() => {
         if (!active) return;
@@ -47,25 +84,50 @@ function NotificationsRuiFeng() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [shownPopupIds]);
+
+  useEffect(() => {
+    if (!popup) return undefined;
+
+    const timer = window.setTimeout(() => {
+      setPopup(null);
+    }, 4000);
+
+    return () => window.clearTimeout(timer);
+  }, [popup]);
 
   useEffect(() => {
     const interval = window.setInterval(() => {
-      const now = new Date();
+      setNotifications((prev) => {
+        const now = new Date();
+        const newlyDue = prev.filter((notification) => {
+          const scheduledAt = notification.scheduledAt ? new Date(notification.scheduledAt) : null;
+          return Boolean(scheduledAt && !notification.isDue && scheduledAt <= now && !shownPopupIds.includes(notification.id));
+        });
 
-      setNotifications((prev) =>
-        prev.map((notification) => {
+        if (newlyDue.length > 0) {
+          const nextReminder = newlyDue[0];
+          setPopup({
+            title: 'Reminder due',
+            message: `${nextReminder.title} is due now.`
+          });
+          const updatedIds = [...shownPopupIds, nextReminder.id];
+          setShownPopupIds(updatedIds);
+          saveStoredPopupIds(updatedIds);
+        }
+
+        return prev.map((notification) => {
           const scheduledAt = notification.scheduledAt ? new Date(notification.scheduledAt) : null;
           if (scheduledAt && !notification.isDue && scheduledAt <= now) {
             return { ...notification, isDue: true };
           }
           return notification;
-        })
-      );
+        });
+      });
     }, 30000);
 
     return () => window.clearInterval(interval);
-  }, []);
+  }, [shownPopupIds]);
 
   function handleInputChange(event) {
     const { name, value } = event.target;
@@ -125,6 +187,10 @@ function NotificationsRuiFeng() {
         const created = response.data.notification;
         setNotifications((prev) => [{ ...created, isDue: false }, ...prev]);
         setSuccess('New notification added successfully.');
+        setPopup({
+          title: 'Reminder added',
+          message: `${title} has been saved.`
+        });
         setFormState({
           category: 'Study Reminder',
           title: '',
@@ -142,6 +208,15 @@ function NotificationsRuiFeng() {
 
   return (
     <section className="placeholder-panel">
+      {popup && (
+        <div className="popup-overlay" role="status" aria-live="polite">
+          <div className="popup-card">
+            <h3>{popup.title}</h3>
+            <p>{popup.message}</p>
+          </div>
+        </div>
+      )}
+
       <h1>Notifications</h1>
       <p>Stay on track with study reminders, revision nudges, and AI quiz alerts.</p>
 
