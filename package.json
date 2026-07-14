@@ -1,10 +1,11 @@
 {
+  "type": "module",
   "name": "studyspark-dashboard",
   "version": "1.0.0",
   "description": "StudySpark Adaptive Dashboard Component",
   "main": "utils/dashboardEngine.js",
   "scripts": {
-    "test": "jest",
+    "test": "node --experimental-vm-modules node_modules/jest/bin/jest.js",
     "lint": "echo 'No lint errors found.'"
   },
   "dependencies": {
