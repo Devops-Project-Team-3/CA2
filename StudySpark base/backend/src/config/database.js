@@ -1,18 +1,39 @@
 /*
-  Owner: Shared
-  Feature: Future Database Configuration
-  Status: Base placeholder only. Database logic not implemented yet.
-  Description: This file is reserved for future database connection setup.
+  Owner: Ryan
+  Feature: GitHub & System Design
+  Status: MySQL database foundation.
+  Description: Shared MySQL connection pool for StudySpark backend features.
 */
 
-// Supabase/SQL connection will be added here later.
-// Do not add real database credentials.
-// Use environment variables when database is added.
-// Keep this file as a placeholder until the team chooses the database provider.
+import dotenv from 'dotenv';
+import mysql from 'mysql2/promise';
 
-const databasePlaceholder = {
-  status: 'disabled',
-  message: 'Database connection placeholder. No real database is configured yet.'
-};
+dotenv.config();
 
-export default databasePlaceholder;
+const requiredDatabaseEnv = ['DB_HOST', 'DB_PORT', 'DB_USER', 'DB_NAME'];
+
+function getMissingDatabaseEnv() {
+  return requiredDatabaseEnv.filter((key) => !process.env[key]);
+}
+
+function hasDatabaseConfig() {
+  return getMissingDatabaseEnv().length === 0;
+}
+
+const pool = mysql.createPool({
+  host: process.env.DB_HOST,
+  port: Number(process.env.DB_PORT || 3306),
+  user: process.env.DB_USER,
+  password: process.env.DB_PASSWORD,
+  database: process.env.DB_NAME,
+  waitForConnections: true,
+  connectionLimit: 10,
+  queueLimit: 0
+});
+
+async function query(sql, params = []) {
+  const [rows] = await pool.execute(sql, params);
+  return rows;
+}
+
+export { getMissingDatabaseEnv, hasDatabaseConfig, pool, query };

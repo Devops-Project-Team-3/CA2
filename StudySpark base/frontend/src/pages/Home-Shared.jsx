@@ -6,77 +6,156 @@
 */
 
 import { Link } from 'react-router-dom';
+import { getStoredToken, getStoredUser } from '../services/authService-Izzul.js';
 
-const features = [
+const studyActions = [
   {
-    title: 'User Authentication',
-    owner: 'Izzul',
-    link: '/login',
-    description: 'Register, login, and manage user profile.'
-  },
-  {
-    title: 'Study Planner',
-    owner: 'Yuki',
+    title: 'Start Your Study Plan',
     link: '/planner',
-    description: 'Create, view, edit, and delete study sessions.'
+    description: 'Map out what to study, when to study it, and what needs attention first.',
+    tag: 'Plan',
+    accent: 'blue'
   },
   {
-    title: 'Adaptive Dashboard',
-    owner: 'Zachary',
+    title: 'Check Your Progress',
     link: '/dashboard',
-    description: 'View study progress, streaks, completed topics, and revision recommendations.'
+    description: 'See your study streak, completed work, and progress at a glance.',
+    tag: 'Track',
+    accent: 'green'
   },
   {
-    title: 'Notifications',
-    owner: 'Rui Feng',
-    link: '/notifications',
-    description: 'Study reminders, revision reminders, and motivational alerts.'
-  },
-  {
-    title: 'AI Quiz Generator',
-    owner: 'Kenneth',
+    title: 'Practice From Notes',
     link: '/ai-quiz',
-    description: 'Generate quizzes from study material using Gemini API later.'
+    description: 'Paste study notes and turn them into quick revision questions.',
+    tag: 'Quiz',
+    accent: 'gold'
   },
   {
-    title: 'GitHub & System Design',
-    owner: 'Ryan',
-    link: '/system-design',
-    description: 'Repository workflow, branch rules, and system architecture.'
+    title: 'Stay On Schedule',
+    link: '/notifications',
+    description: 'Keep study and revision reminders in one place so nothing slips.',
+    tag: 'Remind',
+    accent: 'red'
+  },
+  {
+    title: 'Personalize Your Space',
+    link: '/profile',
+    description: 'Manage your account, profile avatar, and StudySpark identity.',
+    tag: 'Profile',
+    accent: 'purple'
   }
 ];
 
 function HomeShared() {
+  const isLoggedIn = Boolean(getStoredToken() && getStoredUser());
+
   return (
     <div className="home-page">
-      <section className="home-intro">
-        <p className="home-kicker">Adaptive Study Planner</p>
-        <h1>StudySpark</h1>
-        <p className="home-description">
-          StudySpark helps students plan study sessions, track progress, and revise smarter using
-          adaptive recommendations.
-        </p>
+      <section className="home-hero">
+        <div className="home-intro">
+          <p className="home-kicker">Adaptive Study Planner</p>
+          <h1>StudySpark</h1>
+          <p className="home-description">
+            StudySpark helps students plan study sessions, track progress, and revise smarter using
+            adaptive recommendations.
+          </p>
+          <div className="home-actions">
+            {isLoggedIn ? (
+              <>
+                <Link className="primary-action" to="/dashboard">
+                  Open dashboard
+                </Link>
+                <Link className="secondary-action" to="/ai-quiz">
+                  Try AI quiz
+                </Link>
+              </>
+            ) : (
+              <>
+                <Link className="primary-action" to="/register">
+                  Create account
+                </Link>
+                <Link className="secondary-action" to="/login">
+                  Login
+                </Link>
+              </>
+            )}
+          </div>
+          {!isLoggedIn && (
+            <p className="home-auth-note">
+              Login or create an account to save your profile and start tracking study progress.
+            </p>
+          )}
+        </div>
+
+        <div className="study-console" aria-label="StudySpark workspace preview">
+          <div className="console-header">
+            <span>Today</span>
+            <strong>Network Revision</strong>
+          </div>
+          <div className="console-focus-card">
+            <span className="console-dot" />
+            <div>
+              <p>Current focus</p>
+              <strong>VLANs, trunk ports, and tagging</strong>
+            </div>
+          </div>
+          <div className="console-metrics">
+            <div>
+              <span>Streak</span>
+              <strong>7 days</strong>
+            </div>
+            <div>
+              <span>Quiz target</span>
+              <strong>5 questions</strong>
+            </div>
+            <div>
+              <span>Next review</span>
+              <strong>8 PM</strong>
+            </div>
+          </div>
+          <div className="console-timeline">
+            <span style={{ width: '36%' }} />
+            <span style={{ width: '62%' }} />
+            <span style={{ width: '48%' }} />
+          </div>
+        </div>
       </section>
 
-      <section className="feature-grid" aria-label="StudySpark feature owners">
-        {features.map((feature) => (
-          <Link className="feature-card" key={feature.title} to={feature.link}>
-            <span className="feature-owner">Owner: {feature.owner}</span>
-            <h2>{feature.title}</h2>
-            <p>{feature.description}</p>
-            <span className="feature-link">Open placeholder</span>
+      <section className="home-section-heading">
+        <p>Study workspace</p>
+        <h2>Everything you need to plan, revise, and stay consistent.</h2>
+      </section>
+
+      <section className="feature-grid" aria-label="StudySpark study actions">
+        {studyActions.map((action) => (
+          <Link
+            className={`feature-card feature-card-${action.accent}`}
+            key={action.title}
+            to={action.link}
+          >
+            <div className="feature-card-topline">
+              <span>{action.tag}</span>
+            </div>
+            <h3>{action.title}</h3>
+            <p>{action.description}</p>
+            <span className="feature-link">Open</span>
           </Link>
         ))}
       </section>
 
-      <section className="work-rules">
-        <h2>How to work on this project</h2>
-        <ul>
-          <li>Create your own feature branch.</li>
-          <li>Only edit your assigned feature files.</li>
-          <li>Do not push directly to main.</li>
-          <li>Ask before editing shared files.</li>
-        </ul>
+      <section className="home-focus-strip">
+        <div>
+          <span>Plan</span>
+          <strong>Schedule focused study sessions</strong>
+        </div>
+        <div>
+          <span>Track</span>
+          <strong>See progress and revision gaps</strong>
+        </div>
+        <div>
+          <span>Revise</span>
+          <strong>Turn notes into quiz practice</strong>
+        </div>
       </section>
     </div>
   );
