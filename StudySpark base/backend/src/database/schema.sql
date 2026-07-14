@@ -14,11 +14,13 @@ CREATE TABLE IF NOT EXISTS study_sessions (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   subject VARCHAR(100) NOT NULL,
-  topic VARCHAR(150) NOT NULL,
-  study_date DATE NOT NULL,
-  study_time TIME NOT NULL,
+  title VARCHAR(150) NOT NULL,
+  description TEXT,
+  date DATE NOT NULL,
+  study_time TIME,
+  duration INT,
   status VARCHAR(50) DEFAULT 'planned',
-  is_completed BOOLEAN DEFAULT FALSE,
+  completed BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   CONSTRAINT fk_study_sessions_user
     FOREIGN KEY (user_id) REFERENCES users(id)
