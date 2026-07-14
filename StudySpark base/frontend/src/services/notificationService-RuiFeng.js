@@ -6,8 +6,14 @@
 */
 
 import { apiRequest } from './api.js';
+import { getStoredUser } from './authService-Izzul.js';
 
 const STORAGE_KEY = 'studyspark-notifications';
+
+function getStorageKey() {
+  const user = getStoredUser();
+  return user?.id ? `${STORAGE_KEY}-${user.id}` : `${STORAGE_KEY}-guest`;
+}
 
 function createLocalId() {
   if (typeof globalThis.crypto?.randomUUID === 'function') {
@@ -20,6 +26,7 @@ function createLocalId() {
 function normalizeNotification(notification, fallbackId = createLocalId()) {
   const scheduledAt = notification?.scheduledAt || notification?.scheduled || null;
   const parsedScheduledAt = scheduledAt ? new Date(scheduledAt) : null;
+  const isAcknowledged = Boolean(notification?.isAcknowledged || notification?.isRead);
 
   return {
     id: notification?.id || fallbackId,
@@ -28,7 +35,8 @@ function normalizeNotification(notification, fallbackId = createLocalId()) {
     message: notification?.message || '',
     scheduled: scheduledAt ? parsedScheduledAt.toLocaleString() : null,
     scheduledAt: scheduledAt ? parsedScheduledAt.toISOString() : null,
-    isDue: Boolean(parsedScheduledAt && parsedScheduledAt <= new Date()),
+    isAcknowledged,
+    isDue: Boolean(parsedScheduledAt && parsedScheduledAt <= new Date() && !isAcknowledged),
     createdAt: notification?.createdAt || new Date().toISOString()
   };
 }
@@ -39,7 +47,7 @@ function readStoredNotifications() {
   }
 
   try {
-    const rawValue = window.localStorage.getItem(STORAGE_KEY);
+    const rawValue = window.localStorage.getItem(getStorageKey());
     const parsedValue = rawValue ? JSON.parse(rawValue) : [];
     return Array.isArray(parsedValue) ? parsedValue.map((item) => normalizeNotification(item)) : [];
   } catch {
@@ -52,7 +60,7 @@ function writeStoredNotifications(notifications) {
     return;
   }
 
-  window.localStorage.setItem(STORAGE_KEY, JSON.stringify(notifications));
+  window.localStorage.setItem(getStorageKey(), JSON.stringify(notifications));
 }
 
 async function getNotifications() {
@@ -105,4 +113,39 @@ async function createNotification(notification) {
   }
 }
 
-export { createNotification, getNotifications };
+async function acknowledgeNotification(notificationId) {
+  try {
+    const response = await apiRequest(`/api/notifications/${notificationId}/acknowledge`, {
+      method: 'PATCH'
+    });
+
+    const storedNotifications = readStoredNotifications();
+    writeStoredNotifications(
+      storedNotifications.map((notification) =>
+        String(notification.id) === String(notificationId)
+          ? { ...notification, isAcknowledged: true, isDue: false }
+          : notification
+      )
+    );
+
+    return response;
+  } catch {
+    const storedNotifications = readStoredNotifications();
+    writeStoredNotifications(
+      storedNotifications.map((notification) =>
+        String(notification.id) === String(notificationId)
+          ? { ...notification, isAcknowledged: true, isDue: false }
+          : notification
+      )
+    );
+
+    return {
+      data: {
+        acknowledged: true,
+        id: notificationId
+      }
+    };
+  }
+}
+
+export { acknowledgeNotification, createNotification, getNotifications };

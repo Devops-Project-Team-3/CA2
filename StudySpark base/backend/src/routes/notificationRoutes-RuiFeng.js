@@ -7,6 +7,7 @@
 
 import express from 'express';
 import {
+  acknowledgeNotificationPlaceholder,
   createNotificationPlaceholder,
   getNotificationsPlaceholder
 } from '../controllers/notificationController-RuiFeng.js';
@@ -15,5 +16,6 @@ const router = express.Router();
 
 router.get('/', getNotificationsPlaceholder);
 router.post('/', createNotificationPlaceholder);
+router.patch('/:id/acknowledge', acknowledgeNotificationPlaceholder);
 
 export default router;

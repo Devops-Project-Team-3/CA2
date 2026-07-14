@@ -72,6 +72,12 @@ function ProfileIzzul() {
   const [message, setMessage] = useState('Loading profile...');
   const [isLoading, setIsLoading] = useState(true);
 
+  function syncProfileFromStorage() {
+    const storedUser = getStoredUser();
+    setUser(storedUser);
+    setSelectedAvatarId(storedUser?.avatarId || getStoredAvatar());
+  }
+
   useEffect(() => {
     if (!getStoredToken()) {
       setMessage('Please login to view your StudySpark profile.');
@@ -82,6 +88,7 @@ function ProfileIzzul() {
     getProfile()
       .then((response) => {
         setUser(response.user);
+        setSelectedAvatarId(response.user?.avatarId || getStoredAvatar());
         setMessage(response.message || 'Profile loaded successfully.');
       })
       .catch((error) => {
@@ -92,15 +99,30 @@ function ProfileIzzul() {
       .finally(() => setIsLoading(false));
   }, []);
 
+  useEffect(() => {
+    window.addEventListener('studyspark-profile-updated', syncProfileFromStorage);
+    return () => window.removeEventListener('studyspark-profile-updated', syncProfileFromStorage);
+  }, []);
+
   function handleLogout() {
     clearSession();
-    window.dispatchEvent(new Event('studyspark-profile-updated'));
     navigate('/login');
   }
 
-  function handleAvatarChange(avatarId) {
+  async function handleAvatarChange(avatarId) {
     setSelectedAvatarId(avatarId);
-    saveStoredAvatar(avatarId);
+
+    try {
+      const response = await saveStoredAvatar(avatarId);
+      if (response.user) {
+        setUser(response.user);
+        setSelectedAvatarId(response.user.avatarId);
+      }
+      setMessage(response.message || 'Profile avatar updated successfully.');
+    } catch (error) {
+      setSelectedAvatarId(getStoredAvatar());
+      setMessage(error.message || 'Unable to update profile avatar.');
+    }
   }
 
   const selectedAvatar =
@@ -136,6 +158,7 @@ function ProfileIzzul() {
         }}
       >
         <div
+          className="profile-hero-avatar"
           aria-label="Selected profile avatar"
           style={{
             alignItems: 'center',
@@ -168,19 +191,19 @@ function ProfileIzzul() {
           gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))'
         }}
       >
-        <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
+        <div className="profile-info-tile" style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
           <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: '0 0 6px' }}>Name</p>
           <strong>{user?.name || 'Not logged in'}</strong>
         </div>
-        <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
+        <div className="profile-info-tile" style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
           <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: '0 0 6px' }}>Email</p>
           <strong>{user?.email || 'Not available'}</strong>
         </div>
-        <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
+        <div className="profile-info-tile" style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
           <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: '0 0 6px' }}>Account status</p>
           <strong>{user ? 'Logged in' : 'Login required'}</strong>
         </div>
-        <div style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
+        <div className="profile-info-tile" style={{ background: '#f8fafc', borderRadius: '8px', padding: '16px' }}>
           <p style={{ color: '#6b7280', fontSize: '0.9rem', margin: '0 0 6px' }}>Joined</p>
           <strong>{formattedDate}</strong>
         </div>
@@ -188,6 +211,7 @@ function ProfileIzzul() {
 
       {user && (
         <div
+          className="profile-picture-panel"
           style={{
             background: '#f8fafc',
             border: '1px solid #e5edf7',
@@ -216,6 +240,7 @@ function ProfileIzzul() {
 
               return (
                 <button
+                  className="profile-avatar-option"
                   key={avatar.id}
                   onClick={() => handleAvatarChange(avatar.id)}
                   style={{
@@ -233,6 +258,7 @@ function ProfileIzzul() {
                   type="button"
                 >
                   <span
+                    className="profile-avatar-preview"
                     style={{
                       alignItems: 'center',
                       background: avatar.background,

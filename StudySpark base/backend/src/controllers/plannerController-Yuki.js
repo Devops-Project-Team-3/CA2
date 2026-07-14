@@ -5,9 +5,39 @@
   Description: Backend planner controller using the shared StudySpark database.
 */
 
+import jwt from 'jsonwebtoken';
 import { query } from '../config/database.js';
 
-const TEST_USER_ID = 1;
+function getPlannerUserId(req) {
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (token && process.env.JWT_SECRET) {
+    try {
+      const decoded = jwt.verify(token, process.env.JWT_SECRET);
+      if (decoded.id) {
+        return decoded.id;
+      }
+    } catch {
+      return null;
+    }
+  }
+
+  return null;
+}
+
+function requirePlannerUser(req, res) {
+  const userId = getPlannerUserId(req);
+
+  if (!userId) {
+    res.status(401).json({
+      message: 'Login is required to access study planner data.'
+    });
+    return null;
+  }
+
+  return userId;
+}
 
 function mapDatabaseRow(row) {
   return {
@@ -27,6 +57,9 @@ function mapDatabaseRow(row) {
 }
 
 async function getPlannerPlaceholder(req, res) {
+  const userId = requirePlannerUser(req, res);
+  if (!userId) return;
+
   try {
     const rows = await query(
       `
@@ -46,7 +79,7 @@ async function getPlannerPlaceholder(req, res) {
         WHERE user_id = ?
         ORDER BY date ASC, created_at DESC
       `,
-      [TEST_USER_ID]
+      [userId]
     );
 
     const plannerItems = rows.map(mapDatabaseRow);
@@ -65,6 +98,9 @@ async function getPlannerPlaceholder(req, res) {
 }
 
 async function createPlannerPlaceholder(req, res) {
+  const userId = requirePlannerUser(req, res);
+  if (!userId) return;
+
   try {
     const {
       title,
@@ -113,7 +149,7 @@ async function createPlannerPlaceholder(req, res) {
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
       `,
       [
-        TEST_USER_ID,
+        userId,
         subject ? String(subject).trim() : 'General',
         title.trim(),
         description ? String(description).trim() : '',
@@ -142,7 +178,7 @@ async function createPlannerPlaceholder(req, res) {
         FROM study_sessions
         WHERE id = ? AND user_id = ?
       `,
-      [result.insertId, TEST_USER_ID]
+      [result.insertId, userId]
     );
 
     const plannerItem = mapDatabaseRow(rows[0]);
@@ -161,6 +197,9 @@ async function createPlannerPlaceholder(req, res) {
 }
 
 async function updatePlannerPlaceholder(req, res) {
+  const userId = requirePlannerUser(req, res);
+  if (!userId) return;
+
   try {
     const sessionId = Number(req.params.id);
 
@@ -176,7 +215,7 @@ async function updatePlannerPlaceholder(req, res) {
         FROM study_sessions
         WHERE id = ? AND user_id = ?
       `,
-      [sessionId, TEST_USER_ID]
+      [sessionId, userId]
     );
 
     if (existingRows.length === 0) {
@@ -254,7 +293,7 @@ async function updatePlannerPlaceholder(req, res) {
         updatedStatus,
         updatedCompleted,
         sessionId,
-        TEST_USER_ID
+        userId
       ]
     );
 
@@ -275,7 +314,7 @@ async function updatePlannerPlaceholder(req, res) {
         FROM study_sessions
         WHERE id = ? AND user_id = ?
       `,
-      [sessionId, TEST_USER_ID]
+      [sessionId, userId]
     );
 
     const plannerItem = mapDatabaseRow(rows[0]);
@@ -294,6 +333,9 @@ async function updatePlannerPlaceholder(req, res) {
 }
 
 async function deletePlannerPlaceholder(req, res) {
+  const userId = requirePlannerUser(req, res);
+  if (!userId) return;
+
   try {
     const sessionId = Number(req.params.id);
 
@@ -308,7 +350,7 @@ async function deletePlannerPlaceholder(req, res) {
         DELETE FROM study_sessions
         WHERE id = ? AND user_id = ?
       `,
-      [sessionId, TEST_USER_ID]
+      [sessionId, userId]
     );
 
     if (result.affectedRows === 0) {

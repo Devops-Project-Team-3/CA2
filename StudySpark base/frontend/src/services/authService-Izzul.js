@@ -9,15 +9,16 @@ import { API_BASE_URL } from './api.js';
 
 const AUTH_TOKEN_KEY = 'studyspark_auth_token';
 const AUTH_USER_KEY = 'studyspark_auth_user';
-const AUTH_AVATAR_KEY = 'studyspark_profile_avatar';
+const VALID_AVATAR_IDS = new Set(['blob', 'sprout', 'star', 'zap', 'bookbug']);
 
 async function authRequest(path, options = {}) {
+  const { headers: optionHeaders = {}, ...requestOptions } = options;
   const response = await fetch(`${API_BASE_URL}${path}`, {
+    ...requestOptions,
     headers: {
       'Content-Type': 'application/json',
-      ...options.headers
-    },
-    ...options
+      ...optionHeaders
+    }
   });
 
   const data = await response.json().catch(() => ({}));
@@ -29,9 +30,19 @@ async function authRequest(path, options = {}) {
   return data;
 }
 
+function normalizeUser(user) {
+  if (!user) {
+    return null;
+  }
+
+  const avatarId = VALID_AVATAR_IDS.has(user.avatarId) ? user.avatarId : 'blob';
+  return { ...user, avatarId };
+}
+
 function saveSession(token, user) {
   localStorage.setItem(AUTH_TOKEN_KEY, token);
-  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(user));
+  localStorage.setItem(AUTH_USER_KEY, JSON.stringify(normalizeUser(user)));
+  window.dispatchEvent(new Event('studyspark-profile-updated'));
 }
 
 function getStoredToken() {
@@ -46,7 +57,14 @@ function getStoredUser() {
   }
 
   try {
-    return JSON.parse(storedUser);
+    const parsedUser = JSON.parse(storedUser);
+    const normalizedUser = normalizeUser(parsedUser);
+
+    if (normalizedUser && normalizedUser.avatarId !== parsedUser.avatarId) {
+      localStorage.setItem(AUTH_USER_KEY, JSON.stringify(normalizedUser));
+    }
+
+    return normalizedUser;
   } catch {
     localStorage.removeItem(AUTH_USER_KEY);
     return null;
@@ -56,15 +74,36 @@ function getStoredUser() {
 function clearSession() {
   localStorage.removeItem(AUTH_TOKEN_KEY);
   localStorage.removeItem(AUTH_USER_KEY);
+  window.dispatchEvent(new Event('studyspark-profile-updated'));
 }
 
 function getStoredAvatar() {
-  return localStorage.getItem(AUTH_AVATAR_KEY) || 'spark';
+  const avatarId = getStoredUser()?.avatarId;
+  return VALID_AVATAR_IDS.has(avatarId) ? avatarId : 'blob';
 }
 
-function saveStoredAvatar(avatarId) {
-  localStorage.setItem(AUTH_AVATAR_KEY, avatarId);
+async function saveStoredAvatar(avatarId) {
+  const safeAvatarId = VALID_AVATAR_IDS.has(avatarId) ? avatarId : 'blob';
+  const token = getStoredToken();
+
+  if (!token) {
+    throw new Error('Please login to update your profile avatar.');
+  }
+
+  const response = await authRequest('/api/auth/profile/avatar', {
+    method: 'PATCH',
+    headers: {
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ avatarId: safeAvatarId })
+  });
+
+  if (response.user) {
+    localStorage.setItem(AUTH_USER_KEY, JSON.stringify(normalizeUser(response.user)));
+  }
+
   window.dispatchEvent(new Event('studyspark-profile-updated'));
+  return response;
 }
 
 async function registerUser(formData) {

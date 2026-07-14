@@ -10,6 +10,7 @@ import jwt from 'jsonwebtoken';
 import { hasDatabaseConfig, query } from '../config/database.js';
 
 const tokenExpiry = '1d';
+const validAvatarIds = new Set(['blob', 'sprout', 'star', 'zap', 'bookbug']);
 
 function getJwtSecret() {
   return process.env.JWT_SECRET;
@@ -20,6 +21,7 @@ function buildUser(row) {
     id: row.id,
     name: row.name,
     email: row.email,
+    avatarId: validAvatarIds.has(row.avatar_id) ? row.avatar_id : 'blob',
     createdAt: row.created_at
   };
 }
@@ -93,12 +95,12 @@ async function registerUser(req, res) {
 
     const passwordHash = await bcrypt.hash(password, 10);
     const result = await query(
-      'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-      [trimmedName, trimmedEmail, passwordHash]
+      'INSERT INTO users (name, email, password_hash, avatar_id) VALUES (?, ?, ?, ?)',
+      [trimmedName, trimmedEmail, passwordHash, 'blob']
     );
 
     const users = await query(
-      'SELECT id, name, email, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, avatar_id, created_at FROM users WHERE id = ?',
       [result.insertId]
     );
     const user = buildUser(users[0]);
@@ -137,7 +139,7 @@ async function loginUser(req, res) {
 
   try {
     const users = await query(
-      'SELECT id, name, email, password_hash, created_at FROM users WHERE email = ?',
+      'SELECT id, name, email, password_hash, avatar_id, created_at FROM users WHERE email = ?',
       [trimmedEmail]
     );
 
@@ -197,7 +199,7 @@ async function getProfile(req, res) {
   try {
     const decoded = jwt.verify(token, getJwtSecret());
     const users = await query(
-      'SELECT id, name, email, created_at FROM users WHERE id = ?',
+      'SELECT id, name, email, avatar_id, created_at FROM users WHERE id = ?',
       [decoded.id]
     );
 
@@ -222,4 +224,61 @@ async function getProfile(req, res) {
   }
 }
 
-export { getProfile, loginUser, registerUser };
+async function updateAvatar(req, res) {
+  if (!validateAuthSetup(res)) {
+    return;
+  }
+
+  const authHeader = req.headers.authorization || '';
+  const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  const avatarId = String(req.body?.avatarId || '').trim();
+
+  if (!token) {
+    res.status(401).json({
+      success: false,
+      message: 'Login is required to update profile avatar.'
+    });
+    return;
+  }
+
+  if (!validAvatarIds.has(avatarId)) {
+    res.status(400).json({
+      success: false,
+      message: 'Invalid profile avatar.'
+    });
+    return;
+  }
+
+  try {
+    const decoded = jwt.verify(token, getJwtSecret());
+    await query('UPDATE users SET avatar_id = ? WHERE id = ?', [avatarId, decoded.id]);
+
+    const users = await query(
+      'SELECT id, name, email, avatar_id, created_at FROM users WHERE id = ?',
+      [decoded.id]
+    );
+
+    if (users.length === 0) {
+      res.status(404).json({
+        success: false,
+        message: 'User profile was not found.'
+      });
+      return;
+    }
+
+    const user = buildUser(users[0]);
+
+    res.json({
+      success: true,
+      message: 'Profile avatar updated successfully.',
+      user
+    });
+  } catch {
+    res.status(401).json({
+      success: false,
+      message: 'Your login session has expired. Please login again.'
+    });
+  }
+}
+
+export { getProfile, loginUser, registerUser, updateAvatar };

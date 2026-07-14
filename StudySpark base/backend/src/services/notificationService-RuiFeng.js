@@ -7,24 +7,13 @@
 
 import { hasDatabaseConfig, query } from '../config/database.js';
 
-async function getOrCreateDefaultUserId() {
-  const existingUsers = await query('SELECT id FROM users ORDER BY id LIMIT 1');
-
-  if (existingUsers[0]?.id) {
-    return existingUsers[0].id;
-  }
-
-  const result = await query(
-    'INSERT INTO users (name, email, password_hash) VALUES (?, ?, ?)',
-    ['Default User', 'default@example.com', '$2a$10$placeholderhash']
-  );
-
-  return result.insertId;
-}
-
-async function getNotifications() {
+async function getNotifications(userId) {
   if (!hasDatabaseConfig()) {
     return [];
+  }
+
+  if (!userId) {
+    throw new Error('A logged-in user is required to load notifications.');
   }
 
   const rows = await query(`
@@ -38,8 +27,9 @@ async function getNotifications() {
       is_read AS isRead,
       created_at AS createdAt
     FROM notifications
+    WHERE user_id = ?
     ORDER BY created_at DESC
-  `);
+  `, [userId]);
 
   return rows.map((row) => ({
     id: row.id,
@@ -52,7 +42,8 @@ async function getNotifications() {
     scheduledAt: row.scheduledFor
       ? new Date(row.scheduledFor).toISOString()
       : null,
-    isDue: false,
+    isAcknowledged: Boolean(row.isRead),
+    isDue: Boolean(row.scheduledFor && new Date(row.scheduledFor) <= new Date() && !row.isRead),
     createdAt: row.createdAt
   }));
 }
@@ -66,10 +57,14 @@ async function createNotification(notification) {
   const message = (notification.message || '').trim();
   const category = notification.category || 'Study Reminder';
   const scheduledAt = notification.scheduledAt || null;
-  const userId = notification.userId || (await getOrCreateDefaultUserId());
+  const userId = notification.userId;
 
   if (!title || !message || !scheduledAt) {
     throw new Error('Title, message, and scheduled date/time are required.');
+  }
+
+  if (!userId) {
+    throw new Error('A logged-in user is required to create notifications.');
   }
 
   const result = await query(
@@ -85,6 +80,7 @@ async function createNotification(notification) {
     message,
     scheduled: scheduledAt ? new Date(scheduledAt).toLocaleString() : null,
     scheduledAt: scheduledAt ? new Date(scheduledAt).toISOString() : null,
+    isAcknowledged: false,
     isDue: false
   };
 }
@@ -108,17 +104,30 @@ async function processScheduledNotifications() {
       return [];
     }
 
-    const ids = rows.map((row) => row.id);
-    await query(
-      `UPDATE notifications SET is_read = TRUE WHERE id IN (${ids.map(() => '?').join(',')})`,
-      ids
-    );
-
-    return ids;
+    return rows.map((row) => row.id);
   } catch (error) {
     console.error('Unable to process scheduled notifications:', error.message);
     return [];
   }
 }
 
-export { createNotification, getNotifications, processScheduledNotifications };
+async function acknowledgeNotification(userId, notificationId) {
+  if (!hasDatabaseConfig()) {
+    throw new Error('Database configuration is missing.');
+  }
+
+  if (!userId) {
+    throw new Error('A logged-in user is required to acknowledge notifications.');
+  }
+
+  const result = await query(
+    `UPDATE notifications
+     SET is_read = TRUE
+     WHERE id = ? AND user_id = ?`,
+    [notificationId, userId]
+  );
+
+  return result.affectedRows > 0;
+}
+
+export { acknowledgeNotification, createNotification, getNotifications, processScheduledNotifications };
