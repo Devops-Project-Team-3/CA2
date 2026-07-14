@@ -6,13 +6,13 @@
 */
 
 import { apiRequest } from './api.js';
-import { getStoredUser } from './authService-Izzul.js';
+import { getStoredToken, getStoredUser } from './authService-Izzul.js';
 
 const STORAGE_KEY = 'studyspark-notifications';
 
 function getStorageKey() {
   const user = getStoredUser();
-  return user?.id ? `${STORAGE_KEY}-${user.id}` : `${STORAGE_KEY}-guest`;
+  return user?.id ? `${STORAGE_KEY}-${user.id}` : null;
 }
 
 function createLocalId() {
@@ -47,7 +47,13 @@ function readStoredNotifications() {
   }
 
   try {
-    const rawValue = window.localStorage.getItem(getStorageKey());
+    const storageKey = getStorageKey();
+
+    if (!storageKey) {
+      return [];
+    }
+
+    const rawValue = window.localStorage.getItem(storageKey);
     const parsedValue = rawValue ? JSON.parse(rawValue) : [];
     return Array.isArray(parsedValue) ? parsedValue.map((item) => normalizeNotification(item)) : [];
   } catch {
@@ -60,10 +66,20 @@ function writeStoredNotifications(notifications) {
     return;
   }
 
-  window.localStorage.setItem(getStorageKey(), JSON.stringify(notifications));
+  const storageKey = getStorageKey();
+
+  if (!storageKey) {
+    return;
+  }
+
+  window.localStorage.setItem(storageKey, JSON.stringify(notifications));
 }
 
 async function getNotifications() {
+  if (!getStoredToken()) {
+    return { data: { notifications: [] } };
+  }
+
   try {
     const response = await apiRequest('/api/notifications');
     const notifications = Array.isArray(response?.data?.notifications)
@@ -72,13 +88,21 @@ async function getNotifications() {
 
     writeStoredNotifications(notifications);
     return { data: { notifications } };
-  } catch {
+  } catch (error) {
+    if (error.message === 'Login is required to access notifications.') {
+      throw error;
+    }
+
     const storedNotifications = readStoredNotifications();
     return { data: { notifications: storedNotifications } };
   }
 }
 
 async function createNotification(notification) {
+  if (!getStoredToken()) {
+    throw new Error('Please login to create reminders.');
+  }
+
   try {
     const response = await apiRequest('/api/notifications', {
       method: 'POST',
@@ -96,24 +120,16 @@ async function createNotification(notification) {
     }
 
     return response;
-  } catch {
-    const storedNotifications = readStoredNotifications();
-    const createdNotification = normalizeNotification({
-      ...notification,
-      createdAt: new Date().toISOString()
-    });
-    const nextNotifications = [createdNotification, ...storedNotifications.filter((item) => item.id !== createdNotification.id)];
-    writeStoredNotifications(nextNotifications);
-
-    return {
-      data: {
-        notification: createdNotification
-      }
-    };
+  } catch (error) {
+    throw error;
   }
 }
 
 async function acknowledgeNotification(notificationId) {
+  if (!getStoredToken()) {
+    throw new Error('Please login to acknowledge reminders.');
+  }
+
   try {
     const response = await apiRequest(`/api/notifications/${notificationId}/acknowledge`, {
       method: 'PATCH'
