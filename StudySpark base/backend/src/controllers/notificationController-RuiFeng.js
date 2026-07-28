@@ -7,6 +7,7 @@
 
 import {
   acknowledgeNotification,
+  clearAcknowledgedNotifications,
   createNotification,
   getNotifications
 } from '../services/notificationService-RuiFeng.js';
@@ -98,6 +99,25 @@ async function createNotificationPlaceholder(req, res) {
   }
 }
 
+
+async function clearAcknowledgedNotificationsPlaceholder(req, res) {
+  const userId = requireNotificationUser(req, res);
+  if (!userId) return;
+
+  try {
+    const deletedCount = await clearAcknowledgedNotifications(userId);
+
+    return res.json({
+      message: 'Acknowledged reminders cleared successfully.',
+      data: { deletedCount }
+    });
+  } catch (error) {
+    return res.status(500).json({
+      message: 'Unable to clear acknowledged reminders.',
+      error: error.message
+    });
+  }
+}
 async function acknowledgeNotificationPlaceholder(req, res) {
   const userId = requireNotificationUser(req, res);
   if (!userId) return;
@@ -133,6 +153,7 @@ async function acknowledgeNotificationPlaceholder(req, res) {
 
 export {
   acknowledgeNotificationPlaceholder,
+  clearAcknowledgedNotificationsPlaceholder,
   createNotificationPlaceholder,
   getNotificationsPlaceholder
 };

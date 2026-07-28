@@ -15,6 +15,7 @@ function getBearerToken(req) {
 
 function calculateRevisionDueDate(lastQuizDate, score) {
   const baseDate = new Date(lastQuizDate);
+  baseDate.setHours(0, 0, 0, 0);
 
   if (score < 60) {
     baseDate.setDate(baseDate.getDate() + 1);
@@ -24,20 +25,9 @@ function calculateRevisionDueDate(lastQuizDate, score) {
     baseDate.setDate(baseDate.getDate() + 7);
   }
 
-  return baseDate.toISOString().slice(0, 10);
+  return formatLocalDate(baseDate);
 }
 
-function getRevisionLabel(score) {
-  if (score < 60) {
-    return 'Revise tomorrow';
-  }
-
-  if (score <= 80) {
-    return 'Revise in 3 days';
-  }
-
-  return 'Revise in 7 days';
-}
 
 function isSessionCompleted(session) {
   return session.completed === true
@@ -87,6 +77,143 @@ function calculateStudyStreak(activityDates) {
   return streak;
 }
 
+function cleanDisplayTopicTitle(value) {
+  const title = String(value || '').replace(/\s+/g, ' ').trim();
+
+  if (!title) return 'AI Quiz Practice';
+  if (title.length > 80 || title.split(' ').length > 12 || title.includes('. ')) {
+    if (/\bvlan\b|trunk|802\.1q/i.test(title)) return 'Networking Fundamentals';
+    return 'AI Quiz Practice';
+  }
+
+  return title;
+}
+
+function splitStudyTitle(value, plannerSubject = null, plannerTitle = null) {
+  if (plannerTitle) {
+    return {
+      subject: plannerSubject || 'General',
+      title: plannerTitle
+    };
+  }
+
+  const cleaned = cleanDisplayTopicTitle(value);
+  const parts = cleaned.split(' - ').map((part) => part.trim()).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return {
+      subject: parts[0],
+      title: parts.slice(1).join(' - ')
+    };
+  }
+
+  return {
+    subject: 'Study Notes',
+    title: cleaned
+  };
+}
+
+function normalizeTopicKey(value) {
+  return cleanDisplayTopicTitle(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function buildRecommendations(quizResults) {
+  const latestByTopic = new Map();
+
+  for (const result of quizResults) {
+    if (!result.study_session_id || !result.planner_title) {
+      continue;
+    }
+
+    const studyTitle = splitStudyTitle(result.topic_title, result.planner_subject, result.planner_title);
+    const topicName = studyTitle.title;
+    const topicKey = normalizeTopicKey(studyTitle.subject + '-' + studyTitle.title);
+
+    if (latestByTopic.has(topicKey)) {
+      continue;
+    }
+
+    const score = Number(result.score || 0);
+    const createdAt = result.created_at || new Date();
+    const nextRevisionDate = result.next_revision_date
+      ? toDateKey(result.next_revision_date)
+      : calculateRevisionDueDate(createdAt, score);
+
+    latestByTopic.set(topicKey, {
+      id: result.id,
+      name: topicName,
+      subject: studyTitle.subject,
+      quizScore: score,
+      revisionLabel: getRevisionLabelFromDate(nextRevisionDate),
+      revisionDate: nextRevisionDate,
+      isUrgent: score < 60,
+      daysUntilRevision: getDateDifferenceInDays(nextRevisionDate) ?? 999
+    });
+  }
+
+  return Array.from(latestByTopic.values())
+    .sort((a, b) => {
+      if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
+      return a.daysUntilRevision - b.daysUntilRevision;
+    })
+    .map(({ daysUntilRevision, ...recommendation }) => recommendation)
+    .slice(0, 5);
+}
+function getTodayKey() {
+  return formatLocalDate(new Date());
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getDateDifferenceInDays(dateKey) {
+  if (!dateKey) return null;
+  const today = new Date(`${getTodayKey()}T00:00:00`);
+  const target = new Date(`${dateKey}T00:00:00`);
+  return Math.round((target - today) / (24 * 60 * 60 * 1000));
+}
+
+function getRevisionLabelFromDate(dateKey) {
+  const days = getDateDifferenceInDays(dateKey);
+
+  if (days === null) return 'Schedule a revision';
+  if (days < 0) return 'Revision needs attention';
+  if (days === 0) return 'Revise today';
+  if (days === 1) return 'Revise tomorrow';
+  return `Revise in ${days} days`;
+}
+
+function getRecentCompletedTopics(completedTopics, completedSessions) {
+  const combined = [
+    ...completedTopics.map((topic) => ({
+      topic: topic.topic,
+      subject: topic.subject,
+      dateKey: toDateKey(topic.completed_at)
+    })),
+    ...completedSessions.map((session) => ({
+      topic: session.topic,
+      subject: session.subject,
+      dateKey: toDateKey(session.session_date)
+    }))
+  ].filter((item) => item.topic);
+
+  if (!combined.length) return [];
+
+  combined.sort((a, b) => String(b.dateKey || '').localeCompare(String(a.dateKey || '')));
+  const latestDate = combined[0].dateKey;
+  return combined.filter((item) => item.dateKey === latestDate).slice(0, 3);
+}
+
+function formatTopicList(topics) {
+  const names = topics.map((item) => item.topic).filter(Boolean);
+  if (names.length <= 1) return names[0] || 'your completed topic';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
 function buildNextAction({ recommendations, sessions, completedTopics, completedSessions }) {
   if (recommendations[0]) {
     const topic = recommendations[0];
@@ -99,10 +226,13 @@ function buildNextAction({ recommendations, sessions, completedTopics, completed
   }
 
   if (completedTopics[0] || completedSessions[0]) {
-    const completedTopic = completedTopics[0]?.topic || completedSessions[0]?.topic || 'your completed topic';
+    const recentTopics = getRecentCompletedTopics(completedTopics, completedSessions);
+    const topicText = formatTopicList(recentTopics);
+    const title = recentTopics.length > 1 ? 'Quiz your latest topics' : 'Take an AI quiz';
+
     return {
-      title: 'Take an AI quiz',
-      description: `You completed ${completedTopic}. Test your understanding now.`,
+      title,
+      description: `You completed ${topicText}. Generate one focused quiz now, then the dashboard will prioritise whichever topic scores lower.`,
       actionLabel: 'Open AI Quiz',
       actionPath: '/ai-quiz'
     };
@@ -228,9 +358,15 @@ async function getDashboardPlaceholder(req, res) {
       });
     }
 
+    const todayKey = toDateKey(new Date());
     const allSessions = await getStudySessions(user.id);
-    const sessions = allSessions.filter((session) => !isSessionCompleted(session)).slice(0, 5);
+    const todaysSessions = allSessions.filter((session) => toDateKey(session.session_date) === todayKey);
+    const sessions = allSessions
+      .filter((session) => !isSessionCompleted(session))
+      .filter((session) => !session.session_date || toDateKey(session.session_date) >= todayKey)
+      .slice(0, 5);
     const completedSessions = allSessions.filter(isSessionCompleted);
+    const todayCompletedSessions = todaysSessions.filter(isSessionCompleted);
 
     const completedTopics = await query(
       `SELECT id, subject, topic, completed_at
@@ -241,11 +377,23 @@ async function getDashboardPlaceholder(req, res) {
     );
 
     const quizResults = await query(
-      `SELECT id, topic_title, score, revision_recommendation, next_revision_date, created_at
-       FROM quiz_results
-       WHERE user_id = ?
-       ORDER BY created_at DESC
-       LIMIT 5`,
+      `SELECT
+        qr.id,
+        qr.study_session_id,
+        qr.topic_title,
+        qr.score,
+        qr.revision_recommendation,
+        qr.next_revision_date,
+        qr.created_at,
+        ss.subject AS planner_subject,
+        ss.title AS planner_title
+       FROM quiz_results qr
+       LEFT JOIN study_sessions ss
+         ON ss.id = qr.study_session_id
+        AND ss.user_id = qr.user_id
+       WHERE qr.user_id = ?
+       ORDER BY qr.created_at DESC
+       LIMIT 50`,
       [user.id]
     );
 
@@ -258,29 +406,13 @@ async function getDashboardPlaceholder(req, res) {
       [user.id]
     );
 
-    const completedTopicCount = completedTopics.length + completedSessions.length;
-    const totalTopics = Math.max(completedTopicCount + sessions.length, allSessions.length, completedTopics.length, 0);
+    const completedTopicCount = todayCompletedSessions.length;
+    const totalTopics = todaysSessions.length;
     const progressPercent = totalTopics === 0
       ? 0
       : Math.min(100, Math.round((completedTopicCount / totalTopics) * 100));
 
-    const recommendations = quizResults.map((result) => {
-      const score = Number(result.score || 0);
-      const createdAt = result.created_at || new Date();
-      const nextRevisionDate = result.next_revision_date
-        ? toDateKey(result.next_revision_date)
-        : calculateRevisionDueDate(createdAt, score);
-
-      return {
-        id: result.id,
-        name: result.topic_title || 'Untitled quiz topic',
-        subject: result.topic_title || 'General',
-        quizScore: score,
-        revisionLabel: result.revision_recommendation || getRevisionLabel(score),
-        revisionDate: nextRevisionDate,
-        isUrgent: score < 60
-      };
-    });
+    const recommendations = buildRecommendations(quizResults);
     const mappedSessions = sessions.map((session) => ({
       id: session.id,
       date: session.session_date,

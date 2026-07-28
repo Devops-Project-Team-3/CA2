@@ -11,6 +11,43 @@ import { hasDatabaseConfig, query } from '../config/database.js';
 
 const MAX_NOTES_LENGTH = 12000;
 
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function getRevisionLabelForDate(dateKey) {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const target = new Date(`${dateKey}T00:00:00`);
+  const days = Math.round((target - today) / (24 * 60 * 60 * 1000));
+
+  if (days <= 0) return 'Revise today';
+  if (days === 1) return 'Revise tomorrow';
+  return `Revise in ${days} days`;
+}
+
+function getValidStudySessionId(value) {
+  const sessionId = Number(value);
+  return Number.isInteger(sessionId) && sessionId > 0 ? sessionId : null;
+}
+
+function cleanTopicTitle(value) {
+  const title = String(value || '').replace(/\s+/g, ' ').trim();
+
+  if (!title) return 'AI Quiz Practice';
+  if (title.length > 80 || title.split(' ').length > 12 || title.includes('. ')) {
+    if (/\bvlan\b/i.test(title)) return 'VLAN Practice';
+    if (/\btrunk\b|802\.1q/i.test(title)) return 'Switching Practice';
+    return 'AI Quiz Practice';
+  }
+
+  return title.slice(0, 150);
+}
+
+
 function getBearerToken(req) {
   const authHeader = req.headers.authorization || '';
   return authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -18,6 +55,7 @@ function getBearerToken(req) {
 
 function calculateRevisionDueDate(lastQuizDate, score) {
   const baseDate = new Date(lastQuizDate);
+  baseDate.setHours(0, 0, 0, 0);
 
   if (score < 60) {
     baseDate.setDate(baseDate.getDate() + 1);
@@ -27,19 +65,11 @@ function calculateRevisionDueDate(lastQuizDate, score) {
     baseDate.setDate(baseDate.getDate() + 7);
   }
 
-  return baseDate.toISOString().slice(0, 10);
+  return formatLocalDate(baseDate);
 }
 
 function getRevisionLabel(score) {
-  if (score < 60) {
-    return 'Revise tomorrow';
-  }
-
-  if (score <= 80) {
-    return 'Revise in 3 days';
-  }
-
-  return 'Revise in 7 days';
+  return getRevisionLabelForDate(calculateRevisionDueDate(new Date(), score));
 }
 
 async function resolveQuizUserId(req) {
@@ -57,6 +87,108 @@ async function resolveQuizUserId(req) {
   return null;
 }
 
+async function buildLocalQuizInsight(userId) {
+  if (!userId || !hasDatabaseConfig()) {
+    return {
+      difficulty: 'standard',
+      priority: 'notes-based practice',
+      recommendation: 'Generate a quiz from the notes you pasted.'
+    };
+  }
+
+  try {
+    const [scoreRows, dueRows, overdueRows] = await Promise.all([
+      query(
+        `SELECT AVG(score) AS averageScore
+         FROM (
+           SELECT score
+           FROM quiz_results
+           WHERE user_id = ?
+           ORDER BY created_at DESC
+           LIMIT 5
+         ) AS recent_scores`,
+        [userId]
+      ),
+      query(
+        `SELECT COUNT(*) AS dueCount
+         FROM quiz_results
+         WHERE user_id = ?
+           AND next_revision_date IS NOT NULL
+           AND next_revision_date <= CURDATE()`,
+        [userId]
+      ),
+      query(
+        `SELECT COUNT(*) AS overdueCount
+         FROM quiz_results
+         WHERE user_id = ?
+           AND next_revision_date IS NOT NULL
+           AND next_revision_date < CURDATE()`,
+        [userId]
+      )
+    ]);
+
+    const averageScore = Number(scoreRows[0]?.averageScore);
+    const dueCount = Number(dueRows[0]?.dueCount || 0);
+    const overdueCount = Number(overdueRows[0]?.overdueCount || 0);
+
+    if (Number.isFinite(averageScore) && averageScore < 60) {
+      return {
+        difficulty: 'foundational',
+        priority: overdueCount > 0 ? 'review focus' : dueCount > 0 ? 'revision due today' : 'weak-topic practice',
+        recommendation: overdueCount > 0
+          ? 'You have older low-score quiz practice in your history, so this quiz starts with fundamentals.'
+          : 'Start with foundational questions and review explanations carefully.'
+      };
+    }
+
+    if (Number.isFinite(averageScore) && averageScore >= 80 && overdueCount === 0) {
+      return {
+        difficulty: 'challenge',
+        priority: 'progress extension',
+        recommendation: 'Try a harder quiz and focus on application questions.'
+      };
+    }
+
+    return {
+      difficulty: 'standard',
+      priority: overdueCount > 0 ? 'review focus' : dueCount > 0 ? 'revision due today' : 'balanced practice',
+      recommendation: overdueCount > 0
+        ? 'Revise due topics before adding too many new ones.'
+        : 'Keep practising with a balanced quiz.'
+    };
+  } catch (error) {
+    console.error('Local quiz insight error:', error.message);
+    return {
+      difficulty: 'standard',
+      priority: 'notes-based practice',
+      recommendation: 'Generate a quiz from the notes you pasted.'
+    };
+  }
+}
+
+async function resolvePlannerTopicTitle(userId, studySessionId, fallbackTitle) {
+  const sessionId = Number(studySessionId);
+
+  if (!userId || !Number.isInteger(sessionId) || sessionId <= 0 || !hasDatabaseConfig()) {
+    return cleanTopicTitle(fallbackTitle);
+  }
+
+  const rows = await query(
+    `SELECT subject, title
+     FROM study_sessions
+     WHERE id = ? AND user_id = ?
+     LIMIT 1`,
+    [sessionId, userId]
+  );
+
+  if (!rows[0]) {
+    return cleanTopicTitle(fallbackTitle);
+  }
+
+  const subject = String(rows[0].subject || 'General').trim();
+  const title = String(rows[0].title || fallbackTitle || 'AI Quiz Practice').trim();
+  return cleanTopicTitle(subject && subject !== 'General' ? `${subject} - ${title}` : title);
+}
 function generateQuizPlaceholder(req, res) {
   generateQuizWithGemini(req, res);
 }
@@ -74,8 +206,10 @@ async function generateQuizWithGemini(req, res) {
   }
 
   try {
-    const questions = await requestGeminiQuiz(trimNotesForPrompt(notes), apiKey);
-    return res.json({ questions });
+    const userId = await resolveQuizUserId(req);
+    const adaptiveInsight = await buildLocalQuizInsight(userId);
+    const questions = await requestGeminiQuiz(trimNotesForPrompt(notes), apiKey, adaptiveInsight);
+    return res.json({ questions, adaptiveInsight });
   } catch (error) {
     if (error.message === 'INVALID_GEMINI_JSON') {
       return res.status(502).json({ error: 'Gemini returned invalid JSON. Please try again.' });
@@ -109,12 +243,15 @@ async function generateFromDocumentPlaceholder(req, res) {
       });
     }
 
-    const questions = await requestGeminiQuiz(trimNotesForPrompt(extractedText), apiKey);
+    const userId = await resolveQuizUserId(req);
+    const adaptiveInsight = await buildLocalQuizInsight(userId);
+    const questions = await requestGeminiQuiz(trimNotesForPrompt(extractedText), apiKey, adaptiveInsight);
 
     return res.json({
       fileName: req.file.originalname,
       extractedCharacters: extractedText.length,
-      questions
+      questions,
+      adaptiveInsight
     });
   } catch (error) {
     if (error.message === 'INVALID_GEMINI_JSON') {
@@ -129,7 +266,7 @@ async function generateFromDocumentPlaceholder(req, res) {
   }
 }
 
-async function requestGeminiQuiz(notes, apiKey) {
+async function requestGeminiQuiz(notes, apiKey, adaptiveInsight = null) {
   const model = 'gemini-2.5-flash';
   const endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
 
@@ -140,7 +277,7 @@ async function requestGeminiQuiz(notes, apiKey) {
       contents: [
         {
           role: 'user',
-          parts: [{ text: buildQuizPrompt(notes) }]
+          parts: [{ text: buildQuizPrompt(notes, adaptiveInsight) }]
         }
       ],
       generationConfig: {
@@ -179,10 +316,22 @@ async function requestGeminiQuiz(notes, apiKey) {
   }));
 }
 
-function buildQuizPrompt(notes) {
+function buildQuizPrompt(notes, adaptiveInsight = null) {
+  const guidanceLines = adaptiveInsight
+    ? [
+        '',
+        'Adaptive learning guidance:',
+        `- Difficulty: ${adaptiveInsight.difficulty}.`,
+        `- Priority: ${adaptiveInsight.priority}.`,
+        `- Recommendation style: ${adaptiveInsight.recommendation}.`,
+        'Use this guidance to adjust question difficulty and explanation depth, but base all question content only on the study notes.',
+        ''
+      ].join('\n')
+    : '';
+
   return `
 Generate exactly 5 quiz questions from these study notes.
-
+${guidanceLines}
 Return JSON only in this exact format:
 {
   "questions": [
@@ -219,7 +368,6 @@ Study notes:
 ${notes}
 `;
 }
-
 async function extractPdfText(pdfBuffer) {
   const parser = new PDFParse({ data: pdfBuffer });
 
@@ -303,7 +451,7 @@ async function saveQuizResultsPlaceholder(req, res) {
   }
 
   const score = Number(req.body.score);
-  const topicTitle = String(req.body.topicTitle || 'AI Quiz Practice').trim().slice(0, 150);
+  const requestedTopicTitle = req.body.topicTitle || 'AI Quiz Practice';
   const questions = Array.isArray(req.body.questions) ? req.body.questions : [];
   const userAnswers = req.body.userAnswers && typeof req.body.userAnswers === 'object'
     ? req.body.userAnswers
@@ -320,14 +468,17 @@ async function saveQuizResultsPlaceholder(req, res) {
       return res.status(401).json({ error: 'Login is required to save quiz results.' });
     }
 
-    const revisionRecommendation = getRevisionLabel(score);
     const nextRevisionDate = calculateRevisionDueDate(new Date(), score);
+    const revisionRecommendation = getRevisionLabelForDate(nextRevisionDate);
+    const topicTitle = await resolvePlannerTopicTitle(userId, req.body.studySessionId, requestedTopicTitle);
+    const studySessionId = getValidStudySessionId(req.body.studySessionId);
     const result = await query(
       `INSERT INTO quiz_results
-        (user_id, topic_title, questions, user_answers, score, revision_recommendation, next_revision_date)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`,
+        (user_id, study_session_id, topic_title, questions, user_answers, score, revision_recommendation, next_revision_date)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         userId,
+        studySessionId,
         topicTitle || 'AI Quiz Practice',
         JSON.stringify(questions),
         JSON.stringify(userAnswers),

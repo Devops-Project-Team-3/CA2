@@ -8,6 +8,16 @@
 import jwt from 'jsonwebtoken';
 import { query } from '../config/database.js';
 
+function parseBoolean(value, fallback = false) {
+  if (typeof value === 'boolean') return value;
+  if (typeof value === 'number') return value === 1;
+  if (typeof value === 'string') {
+    const normalized = value.trim().toLowerCase();
+    if (['true', '1', 'yes', 'on'].includes(normalized)) return true;
+    if (['false', '0', 'no', 'off', ''].includes(normalized)) return false;
+  }
+  return fallback;
+}
 function getPlannerUserId(req) {
   const authHeader = req.headers.authorization || '';
   const token = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
@@ -146,7 +156,7 @@ async function createPlannerPlaceholder(req, res) {
         ? parsedDuration
         : 45;
 
-    const safeCompleted = Boolean(completed);
+    const safeCompleted = parseBoolean(completed);
     const status = safeCompleted ? 'completed' : 'planned';
 
     const result = await query(
@@ -273,7 +283,7 @@ async function updatePlannerPlaceholder(req, res) {
 
     const updatedCompleted =
       completed !== undefined
-        ? Boolean(completed)
+        ? parseBoolean(completed, Boolean(existing.completed))
         : Boolean(existing.completed);
 
     let updatedDuration = Number(existing.duration || 45);

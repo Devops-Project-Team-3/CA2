@@ -8,6 +8,9 @@ CREATE TABLE IF NOT EXISTS users (
   email VARCHAR(255) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   avatar_id VARCHAR(50) DEFAULT 'blob',
+  email_verified BOOLEAN NOT NULL DEFAULT TRUE,
+  verification_token VARCHAR(128),
+  verification_expires_at DATETIME,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -61,6 +64,7 @@ CREATE TABLE IF NOT EXISTS quiz_results (
   id INT AUTO_INCREMENT PRIMARY KEY,
   user_id INT NOT NULL,
   topic_id INT,
+  study_session_id INT,
   material_id INT,
   topic_title VARCHAR(150),
   questions JSON,
@@ -74,6 +78,9 @@ CREATE TABLE IF NOT EXISTS quiz_results (
     ON DELETE CASCADE,
   CONSTRAINT fk_quiz_results_topic
     FOREIGN KEY (topic_id) REFERENCES completed_topics(id)
+    ON DELETE SET NULL,
+  CONSTRAINT fk_quiz_results_study_session
+    FOREIGN KEY (study_session_id) REFERENCES study_sessions(id)
     ON DELETE SET NULL,
   CONSTRAINT fk_quiz_results_material
     FOREIGN KEY (material_id) REFERENCES materials(id)

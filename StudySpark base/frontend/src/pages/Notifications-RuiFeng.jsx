@@ -8,6 +8,7 @@
 import { useEffect, useState } from 'react';
 import {
   acknowledgeNotification,
+  clearAcknowledgedNotifications,
   createNotification,
   getNotifications
 } from '../services/notificationService-RuiFeng.js';
@@ -189,6 +190,20 @@ function NotificationsRuiFeng() {
     }
   }
 
+
+  async function handleClearAcknowledged() {
+    setError('');
+    setSuccess('');
+
+    try {
+      const response = await clearAcknowledgedNotifications();
+      const deletedCount = Number(response?.data?.deletedCount || acknowledgedNotifications.length);
+      setNotifications((prev) => prev.filter((notification) => !notification.isAcknowledged));
+      setSuccess(deletedCount > 0 ? 'Acknowledged reminders cleared.' : 'No acknowledged reminders to clear.');
+    } catch (requestError) {
+      setError(requestError.message || 'Unable to clear acknowledged reminders.');
+    }
+  }
   const upcomingNotifications = notifications.filter(
     (notification) => !notification.isDue && !notification.isAcknowledged
   );
@@ -201,11 +216,11 @@ function NotificationsRuiFeng() {
         <div>
           <p className="notification-kicker">Notifications</p>
           <h1>Study reminders</h1>
-          <p>Stay on track with study reminders, revision nudges, and AI quiz alerts.</p>
+          <p>Stay on track with manual reminders and adaptive nudges when study sessions are missed or revision is due.</p>
         </div>
         <div className="notification-summary">
           {loading && <p>Loading notifications...</p>}
-          {!loading && !notifications.length && <p>No notifications available yet.</p>}
+          {!loading && !notifications.length && <p>No reminders yet. Adaptive reminders appear after missed sessions or due quiz revisions.</p>}
           {!loading && notifications.length > 0 && (
             <>
               <span>
@@ -233,7 +248,7 @@ function NotificationsRuiFeng() {
           <section className="notification-section">
             <h2 className="notification-section-title">Upcoming reminders</h2>
             {upcomingNotifications.length === 0 ? (
-              <p className="notification-empty">You are all caught up.</p>
+              <p className="notification-empty">You are all caught up. New adaptive reminders will appear here when a study session is missed or a quiz revision becomes due.</p>
             ) : (
               <div className="notification-list">
                 {upcomingNotifications.map((notification) => {
@@ -262,7 +277,7 @@ function NotificationsRuiFeng() {
 
           {recentNotifications.length > 0 && (
             <section className="notification-section">
-              <h2 className="notification-section-title">Recent reminders</h2>
+              <h2 className="notification-section-title">Due reminders</h2>
               <div className="notification-list">
                 {recentNotifications.map((notification) => {
                   const meta = getCategoryMeta(notification.category);
@@ -296,7 +311,12 @@ function NotificationsRuiFeng() {
 
           {acknowledgedNotifications.length > 0 && (
             <section className="notification-section">
-              <h2 className="notification-section-title">Acknowledged reminders</h2>
+              <div style={{ alignItems: 'center', display: 'flex', gap: '12px', justifyContent: 'space-between' }}>
+                <h2 className="notification-section-title" style={{ margin: 0 }}>Acknowledged reminders</h2>
+                <button className="notification-ack-button" type="button" onClick={handleClearAcknowledged}>
+                  Clear acknowledged
+                </button>
+              </div>
               <div className="notification-list">
                 {acknowledgedNotifications.map((notification) => {
                   const meta = getCategoryMeta(notification.category);
@@ -324,7 +344,7 @@ function NotificationsRuiFeng() {
         </div>
 
         <form className="notification-form" onSubmit={handleSubmit}>
-          <h2>Schedule a reminder</h2>
+          <h2>Schedule a manual reminder</h2>
 
           <label className="form-field">
             <span>Category</span>

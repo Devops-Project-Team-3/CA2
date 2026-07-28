@@ -98,6 +98,21 @@ async function getNotifications() {
   }
 }
 
+
+async function clearAcknowledgedNotifications() {
+  if (!getStoredToken()) {
+    throw new Error('Please login to clear reminders.');
+  }
+
+  const response = await apiRequest('/api/notifications/acknowledged', {
+    method: 'DELETE'
+  });
+
+  const storedNotifications = readStoredNotifications();
+  writeStoredNotifications(storedNotifications.filter((notification) => !notification.isAcknowledged));
+
+  return response;
+}
 async function createNotification(notification) {
   if (!getStoredToken()) {
     throw new Error('Please login to create reminders.');
@@ -164,4 +179,4 @@ async function acknowledgeNotification(notificationId) {
   }
 }
 
-export { acknowledgeNotification, createNotification, getNotifications };
+export { acknowledgeNotification, clearAcknowledgedNotifications, createNotification, getNotifications };
