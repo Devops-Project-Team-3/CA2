@@ -367,6 +367,7 @@ Return JSON only in this exact format:
 Rules:
 - Generate exactly 5 questions.
 - Generate exactly 3 multiple-choice questions and exactly 2 open-ended questions.
+- Preserve the main language of the study notes. If the notes are in Chinese, write every generated question, option, correctAnswer, explanation, and sampleAnswer in Chinese. If the notes are mixed-language, use the dominant language from the notes and keep technical terms as written.
 - Multiple-choice questions must have type "multiple-choice", exactly 4 options, and correctAnswer must exactly match one option string.
 - Open-ended questions must have type "open-ended", options as an empty array, correctAnswer as an empty string, and a clear sampleAnswer.
 - explanation should briefly explain why the correct answer is right.
