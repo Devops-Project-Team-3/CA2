@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import {
   createPlannerItem,
   deletePlannerItem,
@@ -15,9 +15,13 @@ const emptyForm = {
   duration: 45
 };
 
+function isSessionCompleted(session) {
+  return session.completed === true || session.completed === 1 || session.completed === '1' || session.status === 'completed';
+}
+
 function getInitialTimerState(session) {
   return {
-    remainingSeconds: Math.max(0, Number(session.duration || 0) * 60),
+    remainingSeconds: isSessionCompleted(session) ? 0 : Math.max(0, Number(session.duration || 0) * 60),
     isRunning: false
   };
 }
@@ -66,6 +70,7 @@ function StudyPlannerYuki() {
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
   const [timerStates, setTimerStates] = useState({});
+  const formRef = useRef(null);
   const [viewMode, setViewMode] = useState('list');
   const [viewDate, setViewDate] = useState(new Date());
   const [selectedDate, setSelectedDate] = useState(toDateKey(new Date()));
@@ -92,8 +97,8 @@ function StudyPlannerYuki() {
               remainingSeconds: 0,
               isRunning: false
             };
-            const completedSession = sessions.find((session) => session.id === sessionId);
-            if (completedSession && !completedSession.completed) {
+            const completedSession = sessions.find((session) => String(session.id) === String(sessionId));
+            if (completedSession && !isSessionCompleted(completedSession)) {
               void completeSessionByTimer(completedSession);
             }
           } else {
@@ -111,13 +116,22 @@ function StudyPlannerYuki() {
     return () => window.clearInterval(interval);
   }, [sessions]);
 
+  const todayKey = toDateKey(new Date());
+  const todaysSessions = useMemo(
+    () => sessions.filter((session) => session.date === todayKey),
+    [sessions, todayKey]
+  );
+  const listSessions = useMemo(
+    () => sessions.filter((session) => !session.date || session.date >= todayKey),
+    [sessions, todayKey]
+  );
   const totalPlannedMinutes = useMemo(
-    () => sessions.reduce((total, session) => total + Number(session.duration || 0), 0),
-    [sessions]
+    () => todaysSessions.reduce((total, session) => total + Number(session.duration || 0), 0),
+    [todaysSessions]
   );
   const totalCompletedMinutes = useMemo(
-    () => sessions.filter((session) => session.completed).reduce((total, session) => total + Number(session.duration || 0), 0),
-    [sessions]
+    () => todaysSessions.filter(isSessionCompleted).reduce((total, session) => total + Number(session.duration || 0), 0),
+    [todaysSessions]
   );
   const progressPercent = totalPlannedMinutes === 0 ? 0 : Math.round((totalCompletedMinutes / totalPlannedMinutes) * 100);
 
@@ -148,7 +162,9 @@ function StudyPlannerYuki() {
       setTimerStates((currentTimerStates) => {
         const nextTimerStates = {};
         plannerItems.forEach((session) => {
-          nextTimerStates[session.id] = currentTimerStates[session.id] || getInitialTimerState(session);
+          nextTimerStates[session.id] = isSessionCompleted(session)
+            ? getInitialTimerState(session)
+            : currentTimerStates[session.id] || getInitialTimerState(session);
         });
         return nextTimerStates;
       });
@@ -207,13 +223,15 @@ function StudyPlannerYuki() {
       subject: session.subject || '',
       description: session.description || '',
       date: session.date || '',
-      completed: session.completed || false,
+      completed: isSessionCompleted(session),
       duration: Number(session.duration || 45)
     });
     setError('');
-    setMessage('');
+    setMessage(`Editing ${session.title}. Update the form and save changes.`);
+    window.requestAnimationFrame(() => {
+      formRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    });
   }
-
   async function handleDelete(id) {
     const confirmed = window.confirm('Delete this study session?');
     if (!confirmed) return;
@@ -233,12 +251,20 @@ function StudyPlannerYuki() {
   }
 
   async function toggleCompleted(session) {
+    if (isSessionCompleted(session)) {
+      return;
+    }
+
     try {
-      await updatePlannerItem(session.id, { completed: !session.completed });
+      await updatePlannerItem(session.id, { completed: true });
       setSessions((currentSessions) =>
-        currentSessions.map((item) => (item.id === session.id ? { ...item, completed: !item.completed } : item))
+        currentSessions.map((item) => (String(item.id) === String(session.id) ? { ...item, completed: true, status: 'completed' } : item))
       );
-      setMessage(session.completed ? 'Study session marked pending.' : 'Study session marked complete.');
+      setTimerStates((currentTimerStates) => ({
+        ...currentTimerStates,
+        [session.id]: { remainingSeconds: 0, isRunning: false }
+      }));
+      setMessage('Study session marked complete.');
     } catch (err) {
       setError('Unable to update completion status.');
     }
@@ -248,7 +274,7 @@ function StudyPlannerYuki() {
     try {
       await updatePlannerItem(session.id, { completed: true });
       setSessions((currentSessions) =>
-        currentSessions.map((item) => (item.id === session.id ? { ...item, completed: true } : item))
+        currentSessions.map((item) => (String(item.id) === String(session.id) ? { ...item, completed: true, status: 'completed' } : item))
       );
       setTimerStates((currentTimerStates) => ({
         ...currentTimerStates,
@@ -266,6 +292,10 @@ function StudyPlannerYuki() {
 
   function controlTimer(session, action) {
     const timerState = timerStates[session.id] || getInitialTimerState(session);
+
+    if (isSessionCompleted(session) && action !== 'complete') {
+      return;
+    }
 
     if (action === 'start') {
       setTimerStates((currentTimerStates) => ({
@@ -306,7 +336,7 @@ function StudyPlannerYuki() {
     }
   }
 
-  const focusSession = focusSessionId ? sessions.find((session) => session.id === focusSessionId) : null;
+  const focusSession = focusSessionId ? sessions.find((session) => String(session.id) === String(focusSessionId)) : null;
   const focusTimerState = focusSession ? timerStates[focusSession.id] || getInitialTimerState(focusSession) : null;
 
   if (focusSession) {
@@ -325,6 +355,7 @@ function StudyPlannerYuki() {
                 <button
                   type="button"
                   className="btn btn-success"
+                  disabled={isSessionCompleted(focusSession)}
                   onClick={() => controlTimer(focusSession, 'start')}
                 >
                   ▶ Resume
@@ -333,13 +364,14 @@ function StudyPlannerYuki() {
                   type="button"
                   className="btn btn-warning"
                   onClick={() => controlTimer(focusSession, 'pause')}
-                  disabled={!focusTimerState?.isRunning}
+                  disabled={isSessionCompleted(focusSession) || !focusTimerState?.isRunning}
                 >
                   ⏸ Pause
                 </button>
                 <button
                   type="button"
                   className="btn btn-outline-secondary"
+                  disabled={isSessionCompleted(focusSession)}
                   onClick={() => controlTimer(focusSession, 'reset')}
                 >
                   🔄 Reset
@@ -347,9 +379,10 @@ function StudyPlannerYuki() {
                 <button
                   type="button"
                   className="btn btn-primary"
-                  onClick={() => controlTimer(focusSession, 'complete')}
+                  disabled={isSessionCompleted(focusSession)}
+                  onClick={() => toggleCompleted(focusSession)}
                 >
-                  ✔ Complete Session
+                  {isSessionCompleted(focusSession) ? 'Completed' : 'Complete Session'}
                 </button>
                 <button
                   type="button"
@@ -381,15 +414,17 @@ function StudyPlannerYuki() {
             <div>
               <h2 className="h4 mb-2">Study Goal Progress</h2>
               <p className="text-muted mb-0">
-                Completed: {totalCompletedMinutes} / {totalPlannedMinutes} minutes
+                Today completed: {totalCompletedMinutes} / {totalPlannedMinutes} minutes
               </p>
             </div>
             <div className="text-md-end">
               <div className="h2 mb-1">{progressPercent}%</div>
               <p className="mb-0 text-muted">
-                {progressPercent >= 100
-                  ? '🎉 Congratulations! You completed today\'s study goal!'
-                  : 'Keep going! You\'re making good progress.'}
+                {totalPlannedMinutes === 0
+                  ? 'No study sessions scheduled for today.'
+                  : progressPercent >= 100
+                    ? 'Congratulations! You completed today\'s study goal!'
+                  : 'Keep going with today\'s study sessions.'}
               </p>
             </div>
           </div>
@@ -407,7 +442,7 @@ function StudyPlannerYuki() {
       </div>
 
       <div className="planner-grid">
-        <form className="planner-form card shadow-sm" onSubmit={handleSubmit}>
+        <form ref={formRef} className="planner-form card shadow-sm" onSubmit={handleSubmit}>
           <div className="card-body">
             <h2 className="h4 mb-3">{editingId ? 'Edit Study Session' : 'New Study Session'}</h2>
 
@@ -469,12 +504,13 @@ function StudyPlannerYuki() {
 
             <div className="form-check mt-3">
               <input
+                id="planner-completed"
                 className="form-check-input"
                 type="checkbox"
                 checked={form.completed}
                 onChange={(event) => setForm({ ...form, completed: event.target.checked })}
               />
-              <label className="form-check-label">Mark as completed</label>
+              <label className="form-check-label" htmlFor="planner-completed">Mark as completed</label>
             </div>
 
             <div className="d-flex flex-wrap gap-2 mt-4">
@@ -587,11 +623,27 @@ function StudyPlannerYuki() {
                     ) : (
                       <ul className="list-unstyled mb-0 d-grid gap-2">
                         {selectedDaySessions.map((session) => (
-                          <li key={session.id} className="d-flex justify-content-between align-items-center">
+                          <li key={session.id} className="d-flex flex-column flex-md-row justify-content-between align-items-md-center gap-2">
                             <span>
-                              {session.completed ? '✅' : '⏳'} {session.title}
+                              {isSessionCompleted(session) ? 'Done' : 'Pending'} {session.title}
                             </span>
-                            <span className="small text-muted">{session.subject || 'General'}</span>
+                            <div className="d-flex flex-wrap align-items-center gap-2">
+                              <span className="small text-muted">{session.subject || 'General'}</span>
+                              <button
+                                type="button"
+                                className="btn btn-sm btn-outline-primary"
+                                disabled={isSessionCompleted(session)}
+                                onClick={() => toggleCompleted(session)}
+                              >
+                                {isSessionCompleted(session) ? 'Completed' : 'Mark as completed'}
+                              </button>
+                              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => handleEdit(session)}>
+                                Edit
+                              </button>
+                              <button type="button" className="btn btn-sm btn-outline-danger" onClick={() => handleDelete(session.id)}>
+                                Delete
+                              </button>
+                            </div>
                           </li>
                         ))}
                       </ul>
@@ -599,12 +651,14 @@ function StudyPlannerYuki() {
                   </div>
                 </div>
               </div>
+            ) : listSessions.length === 0 ? (
+              <p className="text-muted">No current or upcoming study sessions. Past sessions are kept in Calendar View.</p>
             ) : (
               <ul className="list-unstyled d-grid gap-3 mb-0">
-                {sessions.map((session) => {
-                  const timerState = timerStates[session.id] || getInitialTimerState(session);
+                {listSessions.map((session) => {
+                  const timerState = isSessionCompleted(session) ? getInitialTimerState(session) : timerStates[session.id] || getInitialTimerState(session);
                   return (
-                    <li key={session.id} className={`card ${session.completed ? 'border-success' : 'border-light'}`}>
+                    <li key={session.id} className={`card ${isSessionCompleted(session) ? 'border-success' : 'border-light'}`}>
                       <div className="card-body">
                         <div className="d-flex flex-column flex-md-row justify-content-between gap-3">
                           <div>
@@ -613,7 +667,7 @@ function StudyPlannerYuki() {
                             <p className="small text-muted mb-2">
                               {session.date ? `Date: ${session.date}` : 'No date set'}
                               {' · '}
-                              {session.completed ? 'Completed' : 'Pending'}
+                              {isSessionCompleted(session) ? 'Completed' : 'Pending'}
                             </p>
                             <p className="small fw-semibold mb-3">Subject: {session.subject || 'General'}</p>
                             <p className="small fw-semibold mb-3">Duration: {session.duration || 0} minutes</p>
@@ -623,17 +677,17 @@ function StudyPlannerYuki() {
                             <div className="badge bg-primary-subtle text-primary mb-2">Timer</div>
                             <div className="h3 mb-2">{formatTime(timerState.remainingSeconds)}</div>
                             <div className="d-flex flex-wrap gap-2 justify-content-md-end">
-                              <button type="button" className="btn btn-sm btn-success" onClick={() => controlTimer(session, 'start')}>
+                              <button type="button" className="btn btn-sm btn-success" disabled={isSessionCompleted(session)} onClick={() => controlTimer(session, 'start')}>
                                 ▶ Start
                               </button>
-                              <button type="button" className="btn btn-sm btn-warning" onClick={() => controlTimer(session, 'pause')}>
+                              <button type="button" className="btn btn-sm btn-warning" disabled={isSessionCompleted(session)} onClick={() => controlTimer(session, 'pause')}>
                                 ⏸ Pause
                               </button>
-                              <button type="button" className="btn btn-sm btn-outline-secondary" onClick={() => controlTimer(session, 'reset')}>
+                              <button type="button" className="btn btn-sm btn-outline-secondary" disabled={isSessionCompleted(session)} onClick={() => controlTimer(session, 'reset')}>
                                 🔄 Reset
                               </button>
-                              <button type="button" className="btn btn-sm btn-outline-primary" onClick={() => controlTimer(session, 'complete')}>
-                                ✔ Complete
+                              <button type="button" className="btn btn-sm btn-outline-primary" disabled={isSessionCompleted(session)} onClick={() => toggleCompleted(session)}>
+                                {isSessionCompleted(session) ? 'Completed' : 'Mark Complete'}
                               </button>
                             </div>
                           </div>

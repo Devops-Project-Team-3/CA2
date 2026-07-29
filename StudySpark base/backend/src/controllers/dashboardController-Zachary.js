@@ -15,6 +15,7 @@ function getBearerToken(req) {
 
 function calculateRevisionDueDate(lastQuizDate, score) {
   const baseDate = new Date(lastQuizDate);
+  baseDate.setHours(0, 0, 0, 0);
 
   if (score < 60) {
     baseDate.setDate(baseDate.getDate() + 1);
@@ -24,20 +25,9 @@ function calculateRevisionDueDate(lastQuizDate, score) {
     baseDate.setDate(baseDate.getDate() + 7);
   }
 
-  return baseDate.toISOString().slice(0, 10);
+  return formatLocalDate(baseDate);
 }
 
-function getRevisionLabel(score) {
-  if (score < 60) {
-    return 'Revise tomorrow';
-  }
-
-  if (score <= 80) {
-    return 'Revise in 3 days';
-  }
-
-  return 'Revise in 7 days';
-}
 
 function isSessionCompleted(session) {
   return session.completed === true
@@ -67,59 +57,282 @@ function toDateKey(dateValue) {
   return `${year}-${month}-${day}`;
 }
 
-function calculateStudyStreak(activityDates) {
-  const completedDays = new Set(activityDates.map(toDateKey).filter(Boolean));
-
-  if (completedDays.size === 0) {
-    return 0;
-  }
-
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
-
-  let streak = 0;
-
-  while (completedDays.has(cursor.toISOString().slice(0, 10))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
-  }
-
-  return streak;
+function addDaysToDateKey(dateKey, offset) {
+  const date = parseDateKey(dateKey);
+  if (!date) return null;
+  date.setDate(date.getDate() + offset);
+  return formatLocalDate(date);
 }
 
-function buildNextAction({ recommendations, sessions, completedTopics, completedSessions }) {
-  if (recommendations[0]) {
-    const topic = recommendations[0];
+function calculateStudyStreak(activityDates) {
+  const dateKeys = activityDates.map(toDateKey).filter(Boolean);
+  const completedDays = new Set(dateKeys);
+  const todayKey = getTodayKey();
+  const todayActivityCount = dateKeys.filter((dateKey) => dateKey === todayKey).length;
+  const sortedDays = Array.from(completedDays)
+    .filter((dateKey) => dateKey <= todayKey)
+    .sort();
+
+  if (sortedDays.length === 0) {
     return {
+      count: 0,
+      health: 0,
+      status: 'No study activity yet',
+      mood: 'Resting',
+      lastStudyDate: null,
+      daysSinceStudy: null,
+      studiedToday: false,
+      todayActivityCount,
+      message: 'Complete a study session or AI quiz today to wake your streak pet.'
+    };
+  }
+
+  const lastStudyDate = sortedDays[sortedDays.length - 1];
+  const daysSinceStudy = getDateDifferenceInDays(lastStudyDate) * -1;
+  const studiedToday = lastStudyDate === todayKey;
+  const streakAnchor = studiedToday ? todayKey : addDaysToDateKey(todayKey, -1);
+  let cursorKey = streakAnchor;
+  let count = 0;
+
+  while (cursorKey && completedDays.has(cursorKey)) {
+    count += 1;
+    cursorKey = addDaysToDateKey(cursorKey, -1);
+  }
+
+  if (daysSinceStudy > 1) {
+    return {
+      count: 0,
+      health: 0,
+      status: 'Streak reset',
+      mood: 'Asleep',
+      lastStudyDate,
+      daysSinceStudy,
+      studiedToday,
+    todayActivityCount,
+      message: 'Your streak reset because a full study or quiz day was missed. Complete a session or AI quiz today to restart it.'
+    };
+  }
+
+  if (!studiedToday) {
+    return {
+      count,
+      health: 60,
+      status: 'At risk today',
+      mood: 'Waiting',
+      lastStudyDate,
+      daysSinceStudy,
+      studiedToday,
+    todayActivityCount,
+      message: 'Study or take an AI quiz today to keep your streak going.'
+    };
+  }
+
+  return {
+    count,
+    health: 100,
+    status: 'Healthy',
+    mood: 'Energised',
+    lastStudyDate,
+    daysSinceStudy,
+    studiedToday,
+    todayActivityCount,
+    message: 'Nice, your streak pet is fully charged for today.'
+  };
+}
+
+function cleanDisplayTopicTitle(value) {
+  const title = String(value || '').replace(/\s+/g, ' ').trim();
+
+  if (!title) return 'AI Quiz Practice';
+  if (title.length > 80 || title.split(' ').length > 12 || title.includes('. ')) {
+    if (/\bvlan\b|trunk|802\.1q/i.test(title)) return 'Networking Fundamentals';
+    return 'AI Quiz Practice';
+  }
+
+  return title;
+}
+
+function splitStudyTitle(value, plannerSubject = null, plannerTitle = null) {
+  if (plannerTitle) {
+    return {
+      subject: plannerSubject || 'General',
+      title: plannerTitle
+    };
+  }
+
+  const cleaned = cleanDisplayTopicTitle(value);
+  const parts = cleaned.split(' - ').map((part) => part.trim()).filter(Boolean);
+
+  if (parts.length >= 2) {
+    return {
+      subject: parts[0],
+      title: parts.slice(1).join(' - ')
+    };
+  }
+
+  return {
+    subject: 'Study Notes',
+    title: cleaned
+  };
+}
+
+function normalizeTopicKey(value) {
+  return cleanDisplayTopicTitle(value).toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+}
+
+function buildRecommendations(quizResults) {
+  const latestByTopic = new Map();
+
+  for (const result of quizResults) {
+    if (!result.study_session_id || !result.planner_title) {
+      continue;
+    }
+
+    const studyTitle = splitStudyTitle(result.topic_title, result.planner_subject, result.planner_title);
+    const topicName = studyTitle.title;
+    const topicKey = normalizeTopicKey(studyTitle.subject + '-' + studyTitle.title);
+
+    if (latestByTopic.has(topicKey)) {
+      continue;
+    }
+
+    const score = Number(result.score || 0);
+    const createdAt = result.created_at || new Date();
+    const nextRevisionDate = result.next_revision_date
+      ? toDateKey(result.next_revision_date)
+      : calculateRevisionDueDate(createdAt, score);
+
+    latestByTopic.set(topicKey, {
+      id: result.id,
+      name: topicName,
+      subject: studyTitle.subject,
+      quizScore: score,
+      revisionLabel: getRevisionLabelFromDate(nextRevisionDate),
+      revisionDate: nextRevisionDate,
+      isUrgent: score < 60,
+      daysUntilRevision: getDateDifferenceInDays(nextRevisionDate) ?? 999
+    });
+  }
+
+  return Array.from(latestByTopic.values())
+    .sort((a, b) => {
+      if (a.isUrgent !== b.isUrgent) return a.isUrgent ? -1 : 1;
+      return a.daysUntilRevision - b.daysUntilRevision;
+    })
+    .map(({ daysUntilRevision, ...recommendation }) => recommendation)
+    .slice(0, 5);
+}
+function getTodayKey() {
+  return formatLocalDate(new Date());
+}
+
+function formatLocalDate(date) {
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, '0');
+  const day = String(date.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
+}
+
+function parseDateKey(dateKey) {
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
+function getDateDifferenceInDays(dateKey) {
+  const today = parseDateKey(getTodayKey());
+  const target = parseDateKey(dateKey);
+
+  if (!today || !target) return null;
+
+  return Math.round((target - today) / (24 * 60 * 60 * 1000));
+}
+
+function getRevisionLabelFromDate(dateKey) {
+  const days = getDateDifferenceInDays(dateKey);
+
+  if (days === null) return 'Schedule a revision';
+  if (days < 0) return 'Revision needs attention';
+  if (days === 0) return 'Revise today';
+  if (days === 1) return 'Revise tomorrow';
+  return `Revise in ${days} days`;
+}
+
+function getRecentCompletedTopics(completedTopics, completedSessions) {
+  const combined = [
+    ...completedTopics.map((topic) => ({
+      topic: topic.topic,
+      subject: topic.subject,
+      dateKey: toDateKey(topic.completed_at)
+    })),
+    ...completedSessions.map((session) => ({
+      topic: session.topic,
+      subject: session.subject,
+      dateKey: toDateKey(session.session_date)
+    }))
+  ].filter((item) => item.topic);
+
+  if (!combined.length) return [];
+
+  combined.sort((a, b) => String(b.dateKey || '').localeCompare(String(a.dateKey || '')));
+  const latestDate = combined[0].dateKey;
+  return combined.filter((item) => item.dateKey === latestDate).slice(0, 3);
+}
+
+function formatTopicList(topics) {
+  const names = topics.map((item) => item.topic).filter(Boolean);
+  if (names.length <= 1) return names[0] || 'your completed topic';
+  if (names.length === 2) return `${names[0]} and ${names[1]}`;
+  return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
+}
+function buildFocusCandidates({ recommendations, missedSessions, unquizzedCompletedSessions }) {
+  return [
+    ...missedSessions.map((session) => ({
+      type: 'missed-session',
+      title: `Catch up ${session.topic || 'missed study session'}`,
+      description: `${session.subject || 'General'} was missed on ${toDateKey(session.session_date) || 'an earlier date'}. Move it to a new Study Planner slot or mark it completed if you already studied it.`,
+      actionLabel: 'Open Planner',
+      actionPath: '/planner'
+    })),
+    ...unquizzedCompletedSessions.map((session) => ({
+      type: 'completed-unquizzed',
+      title: `Quiz ${session.topic || 'your completed topic'}`,
+      description: `${session.subject || 'General'} is completed but has not been quizzed yet. Take a quiz so StudySpark knows how well you understand it.`,
+      actionLabel: 'Start Quiz',
+      actionPath: '/ai-quiz'
+    })),
+    ...recommendations.map((topic) => ({
+      type: 'revision',
       title: topic.isUrgent ? `Revise ${topic.name}` : `Review ${topic.name}`,
-      description: `Last quiz score: ${topic.quizScore}%. ${topic.revisionLabel}, then try another AI quiz.`,
+      description: `Last quiz score: ${topic.quizScore}%. ${topic.revisionLabel}.`,
       actionLabel: 'Open AI Quiz',
       actionPath: '/ai-quiz'
-    };
+    }))
+  ];
+}
+
+function buildNextAction({ completedTopics, completedSessions, focusCandidates }) {
+  if (focusCandidates[0]) {
+    return focusCandidates[0];
   }
 
   if (completedTopics[0] || completedSessions[0]) {
-    const completedTopic = completedTopics[0]?.topic || completedSessions[0]?.topic || 'your completed topic';
-    return {
-      title: 'Take an AI quiz',
-      description: `You completed ${completedTopic}. Test your understanding now.`,
-      actionLabel: 'Open AI Quiz',
-      actionPath: '/ai-quiz'
-    };
-  }
+    const recentTopics = getRecentCompletedTopics(completedTopics, completedSessions);
+    const topicText = formatTopicList(recentTopics);
 
-  if (sessions[0]) {
     return {
-      title: sessions[0].topic || 'Upcoming study session',
-      description: 'Study this next, then generate an AI quiz to check your understanding.',
+      type: 'completed-work',
+      title: 'Quiz your completed work',
+      description: `You completed ${topicText}. Take a quiz from a completed study session to unlock adaptive recommendations.`,
       actionLabel: 'Open AI Quiz',
       actionPath: '/ai-quiz'
     };
   }
 
   return {
-    title: 'Create a study session',
-    description: 'Add a topic to start tracking progress and unlock AI quiz recommendations.',
+    type: 'start-planning',
+    title: 'Plan your first study session',
+    description: 'Add a study session, complete it, then use AI Quiz to test yourself.',
     actionLabel: 'Open Planner',
     actionPath: '/planner'
   };
@@ -167,7 +380,7 @@ async function getStudySessions(userId) {
     'id',
     'subject',
     topicColumn ? `${topicColumn} AS topic` : "'Untitled study session' AS topic",
-    dateColumn ? `${dateColumn} AS session_date` : 'NULL AS session_date',
+    dateColumn ? `DATE_FORMAT(${dateColumn}, '%Y-%m-%d') AS session_date` : 'NULL AS session_date',
     descriptionColumn ? `${descriptionColumn} AS description` : 'NULL AS description',
     studyTimeColumn ? `${studyTimeColumn} AS study_time` : 'NULL AS study_time',
     durationColumn ? `${durationColumn} AS duration` : 'NULL AS duration',
@@ -228,12 +441,22 @@ async function getDashboardPlaceholder(req, res) {
       });
     }
 
+    const todayKey = toDateKey(new Date());
     const allSessions = await getStudySessions(user.id);
-    const sessions = allSessions.filter((session) => !isSessionCompleted(session)).slice(0, 5);
+    const todaysSessions = allSessions.filter((session) => toDateKey(session.session_date) === todayKey);
+    const sessions = allSessions
+      .filter((session) => !isSessionCompleted(session))
+      .filter((session) => !session.session_date || toDateKey(session.session_date) >= todayKey)
+      .slice(0, 5);
     const completedSessions = allSessions.filter(isSessionCompleted);
+    const missedSessions = allSessions
+      .filter((session) => !isSessionCompleted(session))
+      .filter((session) => session.session_date && toDateKey(session.session_date) < todayKey)
+      .slice(0, 5);
+    const todayCompletedSessions = todaysSessions.filter(isSessionCompleted);
 
     const completedTopics = await query(
-      `SELECT id, subject, topic, completed_at
+      `SELECT id, subject, topic, DATE_FORMAT(completed_at, '%Y-%m-%d') AS completed_at
        FROM completed_topics
        WHERE user_id = ?
        ORDER BY completed_at DESC`,
@@ -241,11 +464,23 @@ async function getDashboardPlaceholder(req, res) {
     );
 
     const quizResults = await query(
-      `SELECT id, topic_title, score, revision_recommendation, next_revision_date, created_at
-       FROM quiz_results
-       WHERE user_id = ?
-       ORDER BY created_at DESC
-       LIMIT 5`,
+      `SELECT
+        qr.id,
+        qr.study_session_id,
+        qr.topic_title,
+        qr.score,
+        qr.revision_recommendation,
+        DATE_FORMAT(qr.next_revision_date, '%Y-%m-%d') AS next_revision_date,
+        DATE_FORMAT(qr.created_at, '%Y-%m-%d') AS created_at,
+        ss.subject AS planner_subject,
+        ss.title AS planner_title
+       FROM quiz_results qr
+       LEFT JOIN study_sessions ss
+         ON ss.id = qr.study_session_id
+        AND ss.user_id = qr.user_id
+       WHERE qr.user_id = ?
+       ORDER BY qr.created_at DESC
+       LIMIT 50`,
       [user.id]
     );
 
@@ -258,28 +493,21 @@ async function getDashboardPlaceholder(req, res) {
       [user.id]
     );
 
-    const completedTopicCount = completedTopics.length + completedSessions.length;
-    const totalTopics = Math.max(completedTopicCount + sessions.length, allSessions.length, completedTopics.length, 0);
+    const completedTopicCount = todayCompletedSessions.length;
+    const totalTopics = todaysSessions.length;
     const progressPercent = totalTopics === 0
       ? 0
       : Math.min(100, Math.round((completedTopicCount / totalTopics) * 100));
 
-    const recommendations = quizResults.map((result) => {
-      const score = Number(result.score || 0);
-      const createdAt = result.created_at || new Date();
-      const nextRevisionDate = result.next_revision_date
-        ? toDateKey(result.next_revision_date)
-        : calculateRevisionDueDate(createdAt, score);
-
-      return {
-        id: result.id,
-        name: result.topic_title || 'Untitled quiz topic',
-        subject: result.topic_title || 'General',
-        quizScore: score,
-        revisionLabel: result.revision_recommendation || getRevisionLabel(score),
-        revisionDate: nextRevisionDate,
-        isUrgent: score < 60
-      };
+    const quizzedSessionIds = new Set(quizResults.map((result) => Number(result.study_session_id)).filter(Boolean));
+    const unquizzedCompletedSessions = completedSessions
+      .filter((session) => !quizzedSessionIds.has(Number(session.id)))
+      .sort((a, b) => String(b.session_date || '').localeCompare(String(a.session_date || '')));
+    const recommendations = buildRecommendations(quizResults);
+    const focusCandidates = buildFocusCandidates({
+      recommendations,
+      missedSessions,
+      unquizzedCompletedSessions
     });
     const mappedSessions = sessions.map((session) => ({
       id: session.id,
@@ -293,14 +521,14 @@ async function getDashboardPlaceholder(req, res) {
       completed: Boolean(session.completed)
     }));
     const nextAction = buildNextAction({
-      recommendations,
-      sessions: mappedSessions,
       completedTopics,
-      completedSessions
+      completedSessions,
+      focusCandidates
     });
-    const studyStreak = calculateStudyStreak([
+    const streakStatus = calculateStudyStreak([
       ...completedTopics.map((topic) => topic.completed_at),
-      ...completedSessions.map((session) => session.session_date)
+      ...completedSessions.map((session) => session.session_date),
+      ...quizResults.map((result) => result.created_at)
     ]);
 
     return res.json({
@@ -316,10 +544,12 @@ async function getDashboardPlaceholder(req, res) {
           completedTopics: completedTopicCount,
           totalTopics,
           progressPercent,
-          studyStreak
+          studyStreak: streakStatus.count,
+          streakPet: streakStatus
         },
         sessions: mappedSessions,
         recommendations,
+        focusCandidates,
         mastery: masteryRows.map((row) => ({
           subject: row.subject,
           completedCount: Number(row.completedCount || 0),

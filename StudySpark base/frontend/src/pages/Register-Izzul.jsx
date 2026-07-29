@@ -25,6 +25,7 @@ function RegisterIzzul() {
   const [message, setMessage] = useState('');
   const [messageType, setMessageType] = useState('info');
   const [isLoading, setIsLoading] = useState(false);
+  const [verificationUrl, setVerificationUrl] = useState('');
 
   function updateField(event) {
     const { name, value } = event.target;
@@ -43,7 +44,10 @@ function RegisterIzzul() {
       const response = await registerUser(formData);
       setMessageType('success');
       setMessage(response.message || 'Account created successfully.');
-      navigate('/profile');
+      setVerificationUrl(response.verificationUrl || '');
+      if (response.token) {
+        navigate('/profile');
+      }
     } catch (error) {
       setMessageType('error');
       setMessage(error.message);
@@ -226,6 +230,13 @@ function RegisterIzzul() {
       </form>
 
       {message && <p style={messageStyles}>{message}</p>}
+
+      {verificationUrl && (
+        <p style={{ margin: 0 }}>
+          Development verification link:{' '}
+          <a href={verificationUrl} target="_blank" rel="noreferrer">Verify email</a>
+        </p>
+      )}
 
       <p style={{ color: '#5f6b7a', margin: 0, textAlign: 'center' }}>
         Already have an account? <Link to="/login">Login here</Link>

@@ -29,7 +29,7 @@ async function generateQuiz({ notes = '', fileName = '' } = {}) {
     throw new Error(data.error || 'Unable to generate quiz.');
   }
 
-  return data.questions;
+  return { questions: data.questions, adaptiveInsight: data.adaptiveInsight || null };
 }
 
 async function generateQuizFromDocument(file) {
@@ -48,7 +48,7 @@ async function generateQuizFromDocument(file) {
     throw new Error(data.error || 'Unable to generate quiz from PDF.');
   }
 
-  return data.questions;
+  return { questions: data.questions, adaptiveInsight: data.adaptiveInsight || null };
 }
 
 function generateQuizPlaceholder(payload) {
