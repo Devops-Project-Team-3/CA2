@@ -190,10 +190,10 @@ function AIQuizKenneth() {
 
       <div
         style={{
-          background: '#eff6ff',
-          border: '1px solid #bfdbfe',
+          background: 'var(--accent-soft)',
+          border: '1px solid var(--border)',
           borderRadius: '8px',
-          color: '#1e3a8a',
+          color: 'var(--text)',
           display: 'grid',
           gap: '6px',
           padding: '14px'
@@ -216,10 +216,12 @@ function AIQuizKenneth() {
           onChange={(event) => setSelectedSessionId(event.target.value)}
           disabled={sessionsLoading || completedSessions.length === 0}
           style={{
-            border: '1px solid #dbe3ef',
+            border: '1px solid var(--border)',
             borderRadius: '8px',
             font: 'inherit',
-            padding: '12px'
+            padding: '12px',
+            background: 'var(--card-muted)',
+            color: 'var(--text)'
           }}
         >
           {sessionsLoading && <option>Loading completed topics...</option>}
@@ -231,17 +233,17 @@ function AIQuizKenneth() {
           ))}
         </select>
         {!sessionsLoading && completedSessions.length === 0 && (
-          <p style={{ color: '#64748b', margin: 0 }}>
+          <p style={{ color: 'var(--muted)', margin: 0 }}>
             Mark a study session as completed in Study Planner first, then come back here for a quiz.
           </p>
         )}
         {selectedSession && (
           <div
             style={{
-              background: '#f8fafc',
-              border: '1px solid #e2e8f0',
+              background: 'var(--card-muted)',
+              border: '1px solid var(--border)',
               borderRadius: '8px',
-              color: '#334155',
+              color: 'var(--text)',
               padding: '12px'
             }}
           >
@@ -263,11 +265,13 @@ function AIQuizKenneth() {
           placeholder="Paste notes for the completed study topic selected above..."
           rows="8"
           style={{
-            border: '1px solid #dbe3ef',
+            border: '1px solid var(--border)',
             borderRadius: '8px',
             font: 'inherit',
             padding: '12px',
-            resize: 'vertical'
+            resize: 'vertical',
+            background: 'var(--card-muted)',
+            color: 'var(--text)'
           }}
         />
       </div>
@@ -290,7 +294,7 @@ function AIQuizKenneth() {
         )}
       </div>
 
-      {error && <p style={{ color: '#b91c1c', fontWeight: 700 }}>{error}</p>}
+      {error && <p style={{ color: 'var(--danger)', fontWeight: 700 }}>{error}</p>}
 
       <button
         type="button"
@@ -338,12 +342,14 @@ function AIQuizKenneth() {
             <fieldset
               key={question.id}
               style={{
-                border: '1px solid #dbe3ef',
+                border: '1px solid var(--border)',
                 borderRadius: '8px',
                 display: 'grid',
                 gap: '10px',
                 margin: 0,
-                padding: '18px'
+                padding: '18px',
+                background: 'var(--card-muted)',
+                color: 'var(--text)'
               }}
             >
               <legend style={{ fontWeight: 800 }}>
@@ -356,11 +362,13 @@ function AIQuizKenneth() {
                   placeholder="Write your answer..."
                   rows="4"
                   style={{
-                    border: '1px solid #dbe3ef',
+                    border: '1px solid var(--border)',
                     borderRadius: '8px',
                     font: 'inherit',
                     padding: '12px',
-                    resize: 'vertical'
+                    resize: 'vertical',
+            background: 'var(--card-muted)',
+            color: 'var(--text)'
                   }}
                 />
               ) : (
@@ -417,10 +425,11 @@ function AIQuizKenneth() {
             <div
               key={question.id}
               style={{
-                background: '#f7f9fc',
-                border: '1px solid #dbe3ef',
+                background: 'var(--card-muted)',
+                border: '1px solid var(--border)',
                 borderRadius: '8px',
-                padding: '16px'
+                padding: '16px',
+                color: 'var(--text)'
               }}
             >
               <h3>{question.question}</h3>

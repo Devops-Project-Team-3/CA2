@@ -57,24 +57,87 @@ function toDateKey(dateValue) {
   return `${year}-${month}-${day}`;
 }
 
+function addDaysToDateKey(dateKey, offset) {
+  const date = parseDateKey(dateKey);
+  if (!date) return null;
+  date.setDate(date.getDate() + offset);
+  return formatLocalDate(date);
+}
+
 function calculateStudyStreak(activityDates) {
-  const completedDays = new Set(activityDates.map(toDateKey).filter(Boolean));
+  const dateKeys = activityDates.map(toDateKey).filter(Boolean);
+  const completedDays = new Set(dateKeys);
+  const todayKey = getTodayKey();
+  const todayActivityCount = dateKeys.filter((dateKey) => dateKey === todayKey).length;
+  const sortedDays = Array.from(completedDays)
+    .filter((dateKey) => dateKey <= todayKey)
+    .sort();
 
-  if (completedDays.size === 0) {
-    return 0;
+  if (sortedDays.length === 0) {
+    return {
+      count: 0,
+      health: 0,
+      status: 'No study activity yet',
+      mood: 'Resting',
+      lastStudyDate: null,
+      daysSinceStudy: null,
+      studiedToday: false,
+      todayActivityCount,
+      message: 'Complete a study session or AI quiz today to wake your streak pet.'
+    };
   }
 
-  const cursor = new Date();
-  cursor.setHours(0, 0, 0, 0);
+  const lastStudyDate = sortedDays[sortedDays.length - 1];
+  const daysSinceStudy = getDateDifferenceInDays(lastStudyDate) * -1;
+  const studiedToday = lastStudyDate === todayKey;
+  const streakAnchor = studiedToday ? todayKey : addDaysToDateKey(todayKey, -1);
+  let cursorKey = streakAnchor;
+  let count = 0;
 
-  let streak = 0;
-
-  while (completedDays.has(cursor.toISOString().slice(0, 10))) {
-    streak += 1;
-    cursor.setDate(cursor.getDate() - 1);
+  while (cursorKey && completedDays.has(cursorKey)) {
+    count += 1;
+    cursorKey = addDaysToDateKey(cursorKey, -1);
   }
 
-  return streak;
+  if (daysSinceStudy > 1) {
+    return {
+      count: 0,
+      health: 0,
+      status: 'Streak reset',
+      mood: 'Asleep',
+      lastStudyDate,
+      daysSinceStudy,
+      studiedToday,
+    todayActivityCount,
+      message: 'Your streak reset because a full study or quiz day was missed. Complete a session or AI quiz today to restart it.'
+    };
+  }
+
+  if (!studiedToday) {
+    return {
+      count,
+      health: 60,
+      status: 'At risk today',
+      mood: 'Waiting',
+      lastStudyDate,
+      daysSinceStudy,
+      studiedToday,
+    todayActivityCount,
+      message: 'Study or take an AI quiz today to keep your streak going.'
+    };
+  }
+
+  return {
+    count,
+    health: 100,
+    status: 'Healthy',
+    mood: 'Energised',
+    lastStudyDate,
+    daysSinceStudy,
+    studiedToday,
+    todayActivityCount,
+    message: 'Nice, your streak pet is fully charged for today.'
+  };
 }
 
 function cleanDisplayTopicTitle(value) {
@@ -170,10 +233,18 @@ function formatLocalDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+function parseDateKey(dateKey) {
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function getDateDifferenceInDays(dateKey) {
-  if (!dateKey) return null;
-  const today = new Date(`${getTodayKey()}T00:00:00`);
-  const target = new Date(`${dateKey}T00:00:00`);
+  const today = parseDateKey(getTodayKey());
+  const target = parseDateKey(dateKey);
+
+  if (!today || !target) return null;
+
   return Math.round((target - today) / (24 * 60 * 60 * 1000));
 }
 
@@ -214,42 +285,54 @@ function formatTopicList(topics) {
   if (names.length === 2) return `${names[0]} and ${names[1]}`;
   return `${names.slice(0, -1).join(', ')}, and ${names[names.length - 1]}`;
 }
-function buildNextAction({ recommendations, sessions, completedTopics, completedSessions }) {
-  if (recommendations[0]) {
-    const topic = recommendations[0];
-    return {
+function buildFocusCandidates({ recommendations, missedSessions, unquizzedCompletedSessions }) {
+  return [
+    ...missedSessions.map((session) => ({
+      type: 'missed-session',
+      title: `Catch up ${session.topic || 'missed study session'}`,
+      description: `${session.subject || 'General'} was missed on ${toDateKey(session.session_date) || 'an earlier date'}. Move it to a new Study Planner slot or mark it completed if you already studied it.`,
+      actionLabel: 'Open Planner',
+      actionPath: '/planner'
+    })),
+    ...unquizzedCompletedSessions.map((session) => ({
+      type: 'completed-unquizzed',
+      title: `Quiz ${session.topic || 'your completed topic'}`,
+      description: `${session.subject || 'General'} is completed but has not been quizzed yet. Take a quiz so StudySpark knows how well you understand it.`,
+      actionLabel: 'Start Quiz',
+      actionPath: '/ai-quiz'
+    })),
+    ...recommendations.map((topic) => ({
+      type: 'revision',
       title: topic.isUrgent ? `Revise ${topic.name}` : `Review ${topic.name}`,
-      description: `Last quiz score: ${topic.quizScore}%. ${topic.revisionLabel}, then try another AI quiz.`,
+      description: `Last quiz score: ${topic.quizScore}%. ${topic.revisionLabel}.`,
       actionLabel: 'Open AI Quiz',
       actionPath: '/ai-quiz'
-    };
+    }))
+  ];
+}
+
+function buildNextAction({ completedTopics, completedSessions, focusCandidates }) {
+  if (focusCandidates[0]) {
+    return focusCandidates[0];
   }
 
   if (completedTopics[0] || completedSessions[0]) {
     const recentTopics = getRecentCompletedTopics(completedTopics, completedSessions);
     const topicText = formatTopicList(recentTopics);
-    const title = recentTopics.length > 1 ? 'Quiz your latest topics' : 'Take an AI quiz';
 
     return {
-      title,
-      description: `You completed ${topicText}. Generate one focused quiz now, then the dashboard will prioritise whichever topic scores lower.`,
-      actionLabel: 'Open AI Quiz',
-      actionPath: '/ai-quiz'
-    };
-  }
-
-  if (sessions[0]) {
-    return {
-      title: sessions[0].topic || 'Upcoming study session',
-      description: 'Study this next, then generate an AI quiz to check your understanding.',
+      type: 'completed-work',
+      title: 'Quiz your completed work',
+      description: `You completed ${topicText}. Take a quiz from a completed study session to unlock adaptive recommendations.`,
       actionLabel: 'Open AI Quiz',
       actionPath: '/ai-quiz'
     };
   }
 
   return {
-    title: 'Create a study session',
-    description: 'Add a topic to start tracking progress and unlock AI quiz recommendations.',
+    type: 'start-planning',
+    title: 'Plan your first study session',
+    description: 'Add a study session, complete it, then use AI Quiz to test yourself.',
     actionLabel: 'Open Planner',
     actionPath: '/planner'
   };
@@ -297,7 +380,7 @@ async function getStudySessions(userId) {
     'id',
     'subject',
     topicColumn ? `${topicColumn} AS topic` : "'Untitled study session' AS topic",
-    dateColumn ? `${dateColumn} AS session_date` : 'NULL AS session_date',
+    dateColumn ? `DATE_FORMAT(${dateColumn}, '%Y-%m-%d') AS session_date` : 'NULL AS session_date',
     descriptionColumn ? `${descriptionColumn} AS description` : 'NULL AS description',
     studyTimeColumn ? `${studyTimeColumn} AS study_time` : 'NULL AS study_time',
     durationColumn ? `${durationColumn} AS duration` : 'NULL AS duration',
@@ -366,10 +449,14 @@ async function getDashboardPlaceholder(req, res) {
       .filter((session) => !session.session_date || toDateKey(session.session_date) >= todayKey)
       .slice(0, 5);
     const completedSessions = allSessions.filter(isSessionCompleted);
+    const missedSessions = allSessions
+      .filter((session) => !isSessionCompleted(session))
+      .filter((session) => session.session_date && toDateKey(session.session_date) < todayKey)
+      .slice(0, 5);
     const todayCompletedSessions = todaysSessions.filter(isSessionCompleted);
 
     const completedTopics = await query(
-      `SELECT id, subject, topic, completed_at
+      `SELECT id, subject, topic, DATE_FORMAT(completed_at, '%Y-%m-%d') AS completed_at
        FROM completed_topics
        WHERE user_id = ?
        ORDER BY completed_at DESC`,
@@ -383,8 +470,8 @@ async function getDashboardPlaceholder(req, res) {
         qr.topic_title,
         qr.score,
         qr.revision_recommendation,
-        qr.next_revision_date,
-        qr.created_at,
+        DATE_FORMAT(qr.next_revision_date, '%Y-%m-%d') AS next_revision_date,
+        DATE_FORMAT(qr.created_at, '%Y-%m-%d') AS created_at,
         ss.subject AS planner_subject,
         ss.title AS planner_title
        FROM quiz_results qr
@@ -412,7 +499,16 @@ async function getDashboardPlaceholder(req, res) {
       ? 0
       : Math.min(100, Math.round((completedTopicCount / totalTopics) * 100));
 
+    const quizzedSessionIds = new Set(quizResults.map((result) => Number(result.study_session_id)).filter(Boolean));
+    const unquizzedCompletedSessions = completedSessions
+      .filter((session) => !quizzedSessionIds.has(Number(session.id)))
+      .sort((a, b) => String(b.session_date || '').localeCompare(String(a.session_date || '')));
     const recommendations = buildRecommendations(quizResults);
+    const focusCandidates = buildFocusCandidates({
+      recommendations,
+      missedSessions,
+      unquizzedCompletedSessions
+    });
     const mappedSessions = sessions.map((session) => ({
       id: session.id,
       date: session.session_date,
@@ -425,14 +521,14 @@ async function getDashboardPlaceholder(req, res) {
       completed: Boolean(session.completed)
     }));
     const nextAction = buildNextAction({
-      recommendations,
-      sessions: mappedSessions,
       completedTopics,
-      completedSessions
+      completedSessions,
+      focusCandidates
     });
-    const studyStreak = calculateStudyStreak([
+    const streakStatus = calculateStudyStreak([
       ...completedTopics.map((topic) => topic.completed_at),
-      ...completedSessions.map((session) => session.session_date)
+      ...completedSessions.map((session) => session.session_date),
+      ...quizResults.map((result) => result.created_at)
     ]);
 
     return res.json({
@@ -448,10 +544,12 @@ async function getDashboardPlaceholder(req, res) {
           completedTopics: completedTopicCount,
           totalTopics,
           progressPercent,
-          studyStreak
+          studyStreak: streakStatus.count,
+          streakPet: streakStatus
         },
         sessions: mappedSessions,
         recommendations,
+        focusCandidates,
         mastery: masteryRows.map((row) => ({
           subject: row.subject,
           completedCount: Number(row.completedCount || 0),

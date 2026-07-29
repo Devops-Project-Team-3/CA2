@@ -18,10 +18,18 @@ function formatLocalDate(date) {
   return `${year}-${month}-${day}`;
 }
 
+function parseDateKey(dateKey) {
+  if (!dateKey || !/^\d{4}-\d{2}-\d{2}$/.test(dateKey)) return null;
+  const [year, month, day] = dateKey.split('-').map(Number);
+  return new Date(year, month - 1, day);
+}
+
 function getRevisionLabelForDate(dateKey) {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const target = new Date(`${dateKey}T00:00:00`);
+  const today = parseDateKey(formatLocalDate(new Date()));
+  const target = parseDateKey(dateKey);
+
+  if (!today || !target) return 'Schedule a revision';
+
   const days = Math.round((target - today) / (24 * 60 * 60 * 1000));
 
   if (days <= 0) return 'Revise today';

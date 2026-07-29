@@ -30,6 +30,10 @@ async function getNotifications(userId) {
       created_at AS createdAt
     FROM notifications
     WHERE user_id = ?
+      AND NOT (
+        is_read = TRUE
+        AND type IN ('Adaptive Reminder', 'Adaptive Revision')
+      )
     ORDER BY created_at DESC
   `, [userId]);
 
@@ -114,7 +118,6 @@ async function createSystemNotificationIfMissing(notification) {
      FROM notifications
      WHERE user_id = ?
        AND title = ?
-       AND created_at >= DATE_SUB(NOW(), INTERVAL 3 DAY)
      LIMIT 1`,
     [notification.userId, notification.title]
   );
@@ -183,7 +186,8 @@ async function clearAcknowledgedNotifications(userId) {
   const result = await query(
     `DELETE FROM notifications
      WHERE user_id = ?
-       AND is_read = TRUE`,
+       AND is_read = TRUE
+       AND type NOT IN ('Adaptive Reminder', 'Adaptive Revision')`,
     [userId]
   );
 

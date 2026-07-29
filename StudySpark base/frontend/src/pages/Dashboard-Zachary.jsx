@@ -33,6 +33,7 @@ function DashboardZachary() {
   const [dashboard, setDashboard] = useState(null);
   const [message, setMessage] = useState('Loading dashboard...');
   const [isLoading, setIsLoading] = useState(true);
+  const [focusIndex, setFocusIndex] = useState(0);
 
   function loadDashboard({ showLoading = false } = {}) {
     if (showLoading) {
@@ -59,7 +60,7 @@ function DashboardZachary() {
       }
     }
 
-    const interval = window.setInterval(refreshWhenVisible, 15000);
+    const interval = window.setInterval(refreshWhenVisible, 60000);
     window.addEventListener('focus', refreshWhenVisible);
     document.addEventListener('visibilitychange', refreshWhenVisible);
 
@@ -70,17 +71,53 @@ function DashboardZachary() {
     };
   }, []);
 
+  useEffect(() => {
+    const focusCandidates = dashboard?.focusCandidates || [];
+
+    if (focusCandidates.length <= 1) {
+      return undefined;
+    }
+
+    const rotateFocusCard = window.setInterval(() => {
+      setFocusIndex((currentIndex) => (currentIndex + 1) % focusCandidates.length);
+    }, 20000);
+
+    return () => window.clearInterval(rotateFocusCard);
+  }, [dashboard?.focusCandidates?.length]);
+
   const metrics = dashboard?.metrics || {
     completedTopics: 0,
     totalTopics: 0,
     progressPercent: 0,
-    studyStreak: 0
+    studyStreak: 0,
+    streakPet: {
+      health: 0,
+      status: 'No study activity yet',
+      mood: 'Resting',
+      lastStudyDate: null,
+      studiedToday: false,
+      todayActivityCount: 0,
+      message: 'Complete a study session or AI quiz today to wake your streak pet.'
+    }
   };
   const sessions = dashboard?.sessions || [];
   const recommendations = dashboard?.recommendations || [];
   const mastery = dashboard?.mastery || [];
-  const nextAction = dashboard?.nextAction || null;
+  const focusCandidates = dashboard?.focusCandidates || [];
+  const currentFocus = focusCandidates.length > 0 ? focusCandidates[focusIndex % focusCandidates.length] : null;
+  const nextAction = currentFocus || dashboard?.nextAction || null;
   const displayName = dashboard?.user?.name || 'Student';
+  const streakPet = metrics.streakPet || {
+    health: 0,
+    status: 'No study activity yet',
+    mood: 'Resting',
+    lastStudyDate: null,
+    studiedToday: false,
+    message: 'Complete a study session or AI quiz today to wake your streak pet.'
+  };
+  const petHealth = Math.max(0, Math.min(100, Number(streakPet.health || 0)));
+  const petMoodClass = petHealth === 0 ? 'is-empty' : petHealth < 70 ? 'is-risk' : 'is-healthy';
+  const hasTodaySessions = Number(metrics.totalTopics || 0) > 0;
 
   const nextFocus = useMemo(() => {
     return recommendations[0] || null;
@@ -107,25 +144,47 @@ function DashboardZachary() {
           <button type="button" className="dashboard-refresh" onClick={() => loadDashboard({ showLoading: true })}>
             Refresh
           </button>
-          <div className="dashboard-progress-ring" aria-label={`${metrics.progressPercent}% complete`}>
-            <strong>{metrics.progressPercent}%</strong>
-            <span>Complete</span>
+          <div className={`dashboard-progress-ring ${hasTodaySessions ? '' : 'is-empty'}`} aria-label={hasTodaySessions ? `${metrics.progressPercent}% complete` : 'No sessions scheduled today'}>
+            <strong>{hasTodaySessions ? `${metrics.progressPercent}%` : 'No Sessions'}</strong>
+            <span>{hasTodaySessions ? 'Complete' : 'Today'}</span>
           </div>
         </div>
       </header>
 
       <section className="dashboard-metrics" aria-label="Dashboard metrics">
-        <article className="dashboard-card">
-          <span className="dashboard-card-label">Study Streak</span>
-          <strong>{metrics.studyStreak} days</strong>
-          <p>Based on your recent completed study activity.</p>
+        <article className="dashboard-card streak-pet-card">
+          <div className="streak-pet-topline">
+            <span className="dashboard-card-label">Study Streak</span>
+            <span className={`streak-pet-status ${petMoodClass}`}>{streakPet.status}</span>
+          </div>
+          <div className="streak-pet-body">
+            <div className={`streak-pet-avatar ${petMoodClass}`} aria-hidden="true">
+              <span className="streak-pet-eye" />
+              <span className="streak-pet-eye" />
+              <span className="streak-pet-mouth" />
+            </div>
+            <div>
+              <strong>{metrics.studyStreak} days</strong>
+              <p>{streakPet.message}</p>
+            </div>
+          </div>
+          <div className="streak-health" aria-label={`Streak pet health ${petHealth}%`}>
+            <span style={{ width: `${petHealth}%` }} />
+          </div>
+          <small>
+            Today activity: {streakPet.todayActivityCount || 0} - Last studied: {streakPet.lastStudyDate ? formatDateOnly(streakPet.lastStudyDate, { weekday: 'short', month: 'short', day: 'numeric' }) : 'Not yet'}
+          </small>
         </article>
         <article className="dashboard-card">
           <span className="dashboard-card-label">Today Sessions</span>
-          <strong>{metrics.completedTopics} / {metrics.totalTopics}</strong>
-          <div className="dashboard-progress-bar">
-            <span style={{ width: `${metrics.progressPercent}%` }} />
-          </div>
+          <strong>{hasTodaySessions ? `${metrics.completedTopics} / ${metrics.totalTopics}` : 'No sessions scheduled today'}</strong>
+          {hasTodaySessions ? (
+            <div className="dashboard-progress-bar">
+              <span style={{ width: `${metrics.progressPercent}%` }} />
+            </div>
+          ) : (
+            <p>Schedule a study session for today to start tracking daily progress.</p>
+          )}
         </article>
         <article className="dashboard-card">
           <span className="dashboard-card-label">Next Focus</span>
