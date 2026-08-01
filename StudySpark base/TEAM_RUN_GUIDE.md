@@ -87,7 +87,37 @@ You should see:
 StudySpark backend base server is running.
 ```
 
-## 5. Stop The App
+## 5. Run Docker Tests
+
+From the `StudySpark base` folder:
+
+```bash
+docker compose run --rm backend-test
+docker compose run --rm frontend-test
+```
+
+This runs:
+
+- `backend-test`: backend route/config smoke tests
+- `frontend-test`: frontend production build test
+
+Use this after pulling new code to prove the frontend and backend still pass inside Docker.
+
+Containerisation details for marking are documented in:
+
+```text
+CONTAINERIZATION.md
+```
+
+For Render deployment, set the frontend environment variable:
+
+```env
+BACKEND_URL=https://your-backend-service-name.onrender.com
+```
+
+Do not use `localhost` for `BACKEND_URL` on Render.
+
+## 6. Stop The App
 
 Press `Ctrl + C` in the terminal.
 
@@ -97,7 +127,7 @@ Then run:
 docker compose down
 ```
 
-## 6. Start Again Next Time
+## 7. Start Again Next Time
 
 From `StudySpark base`, run:
 
@@ -112,7 +142,7 @@ git pull
 docker compose up --build
 ```
 
-## 7. Common Fixes
+## 8. Common Fixes
 
 If Docker says port `5000` or `5173` is already in use:
 
@@ -136,7 +166,7 @@ If AI quiz does not generate:
 
 - Check `GEMINI_API_KEY` in `backend/.env`.
 
-## 8. What Data Is Shared
+## 9. What Data Is Shared
 
 All users connect to the same Aiven database if they use the same `backend/.env`.
 

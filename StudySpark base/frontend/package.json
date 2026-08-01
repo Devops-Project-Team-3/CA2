@@ -9,7 +9,7 @@
     "build": "vite build",
     "preview": "vite preview",
     "lint": "echo \"No frontend lint errors found.\"",
-    "test": "echo \"No frontend tests configured.\""
+    "test": "npm run build"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",

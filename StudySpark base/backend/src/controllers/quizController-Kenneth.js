@@ -455,10 +455,6 @@ function isValidQuizQuestions(questions) {
 }
 
 async function saveQuizResultsPlaceholder(req, res) {
-  if (!hasDatabaseConfig()) {
-    return res.status(500).json({ error: 'Database environment variables are missing.' });
-  }
-
   const score = Number(req.body.score);
   const requestedTopicTitle = req.body.topicTitle || 'AI Quiz Practice';
   const questions = Array.isArray(req.body.questions) ? req.body.questions : [];
@@ -475,6 +471,10 @@ async function saveQuizResultsPlaceholder(req, res) {
 
     if (!userId) {
       return res.status(401).json({ error: 'Login is required to save quiz results.' });
+    }
+
+    if (!hasDatabaseConfig()) {
+      return res.status(500).json({ error: 'Database environment variables are missing.' });
     }
 
     const nextRevisionDate = calculateRevisionDueDate(new Date(), score);
