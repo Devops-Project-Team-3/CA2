@@ -1,0 +1,59 @@
+name: StudySpark Container Tests
+
+on:
+  push:
+    branches:
+      - main
+      - development
+    paths:
+      - "StudySpark base/**"
+      - ".github/workflows/container-tests.yml"
+
+  pull_request:
+    branches:
+      - main
+      - development
+    paths:
+      - "StudySpark base/**"
+      - ".github/workflows/container-tests.yml"
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: container-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  backend-container-test:
+    name: Backend Test Container
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run backend tests inside Docker
+        working-directory: "StudySpark base"
+        run: docker compose run --rm backend-test
+
+  frontend-container-test:
+    name: Frontend Test Container
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run frontend build test inside Docker
+        working-directory: "StudySpark base"
+        run: docker compose run --rm frontend-test
+
