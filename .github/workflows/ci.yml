@@ -154,10 +154,10 @@ jobs:
         working-directory: "StudySpark base/backend"
         run: |
           npm ci
-          npm audit --omit=dev --audit-level=high
+          npm audit --omit=dev --audit-level=moderate
 
       - name: Audit frontend dependencies
         working-directory: "StudySpark base/frontend"
         run: |
           npm ci
-          npm audit --omit=dev --audit-level=high
+          npm audit --omit=dev --audit-level=moderate
