@@ -20,5 +20,8 @@
     "mysql2": "^3.22.6",
     "nodemailer": "^9.0.3",
     "pdf-parse": "^2.4.5"
+  },
+  "devDependencies": {
+    "eslint": "^10.8.0"
   }
 }
