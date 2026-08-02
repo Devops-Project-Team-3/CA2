@@ -8,7 +8,7 @@
     "dev:fresh": "vite --force --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "echo \"No frontend lint errors found.\"",
+    "lint": "eslint . --ext .js,.jsx",
     "test": "npm run build"
   },
   "dependencies": {
