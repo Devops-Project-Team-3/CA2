@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   env: {
     browser: true,
     es2024: true,
@@ -18,7 +18,7 @@ export default {
   },
   rules: {
     "react/react-in-jsx-scope": "off",
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     "no-console": "warn",
   },
 };

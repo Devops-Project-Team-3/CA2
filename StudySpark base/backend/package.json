@@ -7,7 +7,7 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "db:setup": "node src/database/setupDatabase.js",
-    "lint": "eslint . --ext .js",
+    "lint": "eslint --config eslint.config.cjs . --ext .js",
     "test": "node --test src/tests/*.test.js"
   },
   "dependencies": {
@@ -22,6 +22,6 @@
     "pdf-parse": "^2.4.5"
   },
   "devDependencies": {
-    "eslint": "^10.8.0"
+    "eslint": "^9.39.5"
   }
 }
