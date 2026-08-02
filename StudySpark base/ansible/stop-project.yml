@@ -1,0 +1,20 @@
+---
+- name: Stop StudySpark Application
+  hosts: studyspark
+  gather_facts: false
+
+  vars:
+    project_path: "/mnt/d/DevOps CA2 - Copy/CA2/StudySpark base"
+
+  tasks:
+
+    - name: Stop StudySpark containers
+      command: docker compose down
+      args:
+        chdir: "{{ project_path }}"
+      register: stop_result
+
+    - name: Display result
+      debug:
+        msg:
+          - "StudySpark stopped successfully."

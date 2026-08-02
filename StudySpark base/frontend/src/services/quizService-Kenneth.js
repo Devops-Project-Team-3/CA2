@@ -7,12 +7,19 @@
 
 import { API_BASE_URL, apiRequest } from './api.js';
 
+const AUTH_TOKEN_KEY = 'studyspark_auth_token';
+
+function getAuthHeaders() {
+  const token = localStorage.getItem(AUTH_TOKEN_KEY);
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 async function generateQuiz({ notes = '', fileName = '' } = {}) {
   // Gemini API integration runs on the backend only.
   // The frontend never receives or stores the Gemini API key.
   const response = await fetch(`${API_BASE_URL}/api/quiz/generate`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders() },
     body: JSON.stringify({ notes, fileName })
   });
 
@@ -22,19 +29,41 @@ async function generateQuiz({ notes = '', fileName = '' } = {}) {
     throw new Error(data.error || 'Unable to generate quiz.');
   }
 
-  return data.questions;
+  return { questions: data.questions, adaptiveInsight: data.adaptiveInsight || null };
+}
+
+async function generateQuizFromDocument(file) {
+  const formData = new FormData();
+  formData.append('document', file);
+
+  const response = await fetch(`${API_BASE_URL}/api/quiz/generate-from-document`, {
+    method: 'POST',
+    headers: getAuthHeaders(),
+    body: formData
+  });
+
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || 'Unable to generate quiz from PDF.');
+  }
+
+  return { questions: data.questions, adaptiveInsight: data.adaptiveInsight || null };
 }
 
 function generateQuizPlaceholder(payload) {
   return generateQuiz(payload);
 }
 
-function generateQuizFromDocumentPlaceholder() {
-  return apiRequest('/api/quiz/generate-from-document', { method: 'POST' });
+function generateQuizFromDocumentPlaceholder(file) {
+  return generateQuizFromDocument(file);
 }
 
-function saveQuizResultsPlaceholder() {
-  return apiRequest('/api/quiz/results', { method: 'POST' });
+function saveQuizResultsPlaceholder(payload = {}) {
+  return apiRequest('/api/quiz/results', {
+    method: 'POST',
+    body: JSON.stringify(payload)
+  });
 }
 
 function getQuizHistoryPlaceholder(userId = 'placeholder-user') {
@@ -43,6 +72,7 @@ function getQuizHistoryPlaceholder(userId = 'placeholder-user') {
 
 export {
   generateQuiz,
+  generateQuizFromDocument,
   generateQuizFromDocumentPlaceholder,
   generateQuizPlaceholder,
   getQuizHistoryPlaceholder,

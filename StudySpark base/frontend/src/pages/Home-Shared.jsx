@@ -5,6 +5,7 @@
   Description: Main homepage hub for StudySpark feature navigation.
 */
 
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getStoredToken, getStoredUser } from '../services/authService-Izzul.js';
 
@@ -46,8 +47,75 @@ const studyActions = [
   }
 ];
 
+const heroSlides = [
+  {
+    eyebrow: 'Dashboard',
+    title: 'Track study momentum',
+    description: 'View streaks, completed topics, upcoming study slots, and the next suggested focus.',
+    stats: [
+      { label: 'Focus', value: 'Next step' },
+      { label: 'Progress', value: 'Live view' },
+      { label: 'Review', value: 'Adaptive' }
+    ],
+    bars: ['82%', '58%', '68%']
+  },
+  {
+    eyebrow: 'Study Planner',
+    title: 'Plan sessions and focus time',
+    description: 'Create study sessions, use list or calendar views, and run a simple focus timer.',
+    stats: [
+      { label: 'Views', value: 'List + calendar' },
+      { label: 'Timer', value: 'Focus mode' },
+      { label: 'Status', value: 'Complete' }
+    ],
+    bars: ['44%', '76%', '54%']
+  },
+  {
+    eyebrow: 'AI Quiz',
+    title: 'Practice from notes or PDFs',
+    description: 'Generate mixed quiz practice with multiple-choice and open-ended questions.',
+    stats: [
+      { label: 'Input', value: 'Notes / PDF' },
+      { label: 'Quiz', value: 'Mixed' },
+      { label: 'Review', value: 'Answers' }
+    ],
+    bars: ['64%', '88%', '46%']
+  },
+  {
+    eyebrow: 'Notifications',
+    title: 'Keep reminders visible',
+    description: 'Schedule study, revision, and AI quiz reminders in a notification-style workspace.',
+    stats: [
+      { label: 'Types', value: '3' },
+      { label: 'Status', value: 'Due' },
+      { label: 'Alerts', value: 'Popup' }
+    ],
+    bars: ['35%', '70%', '92%']
+  },
+  {
+    eyebrow: 'Profile',
+    title: 'Personalize your study space',
+    description: 'Login, manage your account details, and choose a profile avatar for StudySpark.',
+    stats: [
+      { label: 'Account', value: 'Saved' },
+      { label: 'Avatar', value: 'Preset' },
+      { label: 'Theme', value: 'Cozy' }
+    ],
+    bars: ['52%', '66%', '80%']
+  }
+];
+
 function HomeShared() {
   const isLoggedIn = Boolean(getStoredToken() && getStoredUser());
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  useEffect(() => {
+    const interval = window.setInterval(() => {
+      setActiveSlide((currentSlide) => (currentSlide + 1) % heroSlides.length);
+    }, 5500);
+
+    return () => window.clearInterval(interval);
+  }, []);
 
   return (
     <div className="home-page">
@@ -87,36 +155,62 @@ function HomeShared() {
           )}
         </div>
 
-        <div className="study-console" aria-label="StudySpark workspace preview">
-          <div className="console-header">
-            <span>Today</span>
-            <strong>Network Revision</strong>
+        <div className="study-console rotating-console" aria-label="StudySpark feature showcase">
+          <div className="rotating-slide-frame">
+            {heroSlides.map((slide, slideIndex) => {
+              const isActive = activeSlide === slideIndex;
+
+              return (
+                <div
+                  aria-hidden={!isActive}
+                  className={isActive ? 'rotating-slide active' : 'rotating-slide'}
+                  key={slide.title}
+                >
+                  <div className="console-header">
+                    <span>{slide.eyebrow}</span>
+                    <strong>{slide.title}</strong>
+                  </div>
+                  <div className="console-focus-card">
+                    <span className="console-dot" />
+                    <div>
+                      <p>Feature preview</p>
+                      <strong>{slide.description}</strong>
+                    </div>
+                  </div>
+                  <div className="console-metrics">
+                    {slide.stats.map((stat) => (
+                      <div key={stat.label}>
+                        <span>{stat.label}</span>
+                        <strong>{stat.value}</strong>
+                      </div>
+                    ))}
+                  </div>
+                  <div className="console-timeline">
+                    {slide.bars.map((barWidth, index) => (
+                      <span
+                        key={`${slide.title}-${barWidth}`}
+                        style={{
+                          transitionDelay: `${index * 90}ms`,
+                          width: isActive ? barWidth : '24%'
+                        }}
+                      />
+                    ))}
+                  </div>
+                </div>
+              );
+            })}
           </div>
-          <div className="console-focus-card">
-            <span className="console-dot" />
-            <div>
-              <p>Current focus</p>
-              <strong>VLANs, trunk ports, and tagging</strong>
-            </div>
-          </div>
-          <div className="console-metrics">
-            <div>
-              <span>Streak</span>
-              <strong>7 days</strong>
-            </div>
-            <div>
-              <span>Quiz target</span>
-              <strong>5 questions</strong>
-            </div>
-            <div>
-              <span>Next review</span>
-              <strong>8 PM</strong>
-            </div>
-          </div>
-          <div className="console-timeline">
-            <span style={{ width: '36%' }} />
-            <span style={{ width: '62%' }} />
-            <span style={{ width: '48%' }} />
+          <div className="rotating-dots" aria-label="Choose feature preview">
+            {heroSlides.map((slide, index) => (
+              <button
+                aria-label={`Show ${slide.eyebrow}`}
+                aria-pressed={activeSlide === index}
+                className={activeSlide === index ? 'active' : ''}
+                key={slide.eyebrow}
+                onClick={() => setActiveSlide(index)}
+                type="button"
+              />
+            ))}
           </div>
         </div>
       </section>

@@ -1,0 +1,48 @@
+---
+- name: Rebuild StudySpark Application
+  hosts: studyspark
+  gather_facts: false
+
+  vars:
+    project_path: "/mnt/d/DevOps CA2 - Copy/CA2/StudySpark base"
+
+  tasks:
+    - name: Stop existing StudySpark containers
+      ansible.builtin.command: docker compose down
+      args:
+        chdir: "{{ project_path }}"
+      changed_when: true
+
+    - name: Rebuild StudySpark images without cache
+      ansible.builtin.command: docker compose build --no-cache
+      args:
+        chdir: "{{ project_path }}"
+      changed_when: true
+
+    - name: Start rebuilt StudySpark containers
+      ansible.builtin.command: docker compose up -d
+      args:
+        chdir: "{{ project_path }}"
+      changed_when: true
+
+    - name: Wait for containers to initialise
+      ansible.builtin.pause:
+        seconds: 10
+
+    - name: Check rebuilt container status
+      ansible.builtin.command: docker compose ps
+      args:
+        chdir: "{{ project_path }}"
+      register: rebuild_status
+      changed_when: false
+
+    - name: Display rebuilt container status
+      ansible.builtin.debug:
+        var: rebuild_status.stdout_lines
+
+    - name: Display rebuild result
+      ansible.builtin.debug:
+        msg:
+          - "StudySpark rebuilt successfully."
+          - "Frontend: http://localhost:5173"
+          - "Backend: http://localhost:5000"

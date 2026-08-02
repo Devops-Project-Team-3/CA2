@@ -1,0 +1,21 @@
+---
+- name: Check StudySpark Environment
+  hosts: studyspark
+  gather_facts: false
+
+  tasks:
+    - name: Check Docker installation
+      command: docker --version
+      register: docker_version
+
+    - name: Display Docker version
+      debug:
+        var: docker_version.stdout
+
+    - name: Check Docker Compose installation
+      command: docker compose version
+      register: compose_version
+
+    - name: Display Docker Compose version
+      debug:
+        var: compose_version.stdout

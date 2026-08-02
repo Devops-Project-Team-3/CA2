@@ -38,16 +38,6 @@ Instead of only creating study schedules, the application continuously tracks:
 
 Using this information, StudySpark automatically recommends when a student should revise a topic.
 
-## Revision Recommendation Rules
-
-| Quiz Score | Recommended Revision |
-|------------|----------------------|
-| Below 60% | Revise tomorrow |
-| 60% – 80% | Revise in 3 days |
-| Above 80% | Revise in 7 days |
-
-This creates a personalised revision schedule tailored to each student's learning performance.
-
 ---
 
 # AI Feature (Supporting Feature)
@@ -89,7 +79,6 @@ StudySpark is designed for:
 
 - User Registration
 - User Login
-- Secure Password Hashing
 - User Profile
 
 ---
@@ -122,7 +111,6 @@ Provides:
 
 - 📅 Study Reminders
 - 🔁 Revision Reminders
-- 💪 Motivational Notifications
 - 🤖 AI Quiz Reminders
 
 ---

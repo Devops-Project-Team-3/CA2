@@ -1,8 +1,44 @@
 # StudySpark
 
-StudySpark is a group web app project using React + Vite for the frontend and Node.js + Express for the backend.
+StudySpark is a React + Vite frontend with a Node.js + Express backend and a shared Aiven MySQL database.
 
-This repository is the shared base structure only. Feature logic is not implemented yet.
+For the easiest setup, use Docker:
+
+[TEAM_RUN_GUIDE.md](TEAM_RUN_GUIDE.md)
+
+Containerisation details for marking:
+
+[CONTAINERIZATION.md](CONTAINERIZATION.md)
+
+## Quick Start
+
+From the `StudySpark base` folder:
+
+```bash
+docker compose up --build
+```
+
+Open:
+
+```text
+http://localhost:5173
+```
+
+The backend runs on:
+
+```text
+http://localhost:5000
+```
+
+## Environment Variables
+
+The backend needs a private env file:
+
+```text
+backend/.env
+```
+
+Use [.env.example](.env.example) as the template, but do not commit real credentials.
 
 ## Project Structure
 
@@ -11,9 +47,9 @@ backend/
   src/
     config/
     controllers/
+    database/
     routes/
     services/
-  server.js
 frontend/
   src/
     components/
@@ -22,77 +58,28 @@ frontend/
     services/
 ```
 
-## Install Frontend Dependencies
+## Main Features
 
-```bash
-cd frontend
-npm install
-```
+- User registration, login, and profile avatar
+- Study planner sessions
+- Dashboard with account-scoped study and quiz data
+- Notifications and reminder acknowledgement
+- AI quiz generation with text/PDF input
+- Light, dark, and cozy themes
 
-## Install Backend Dependencies
+## Assigned Areas
 
-```bash
-cd backend
-npm install
-```
+| Teammate | Feature |
+| --- | --- |
+| Izzul | Authentication and profile |
+| Yuki | Study planner |
+| Zachary | Dashboard |
+| Rui Feng | Notifications |
+| Kenneth | AI quiz |
+| Ryan | System design and repository workflow |
 
-## Run Frontend
+## Notes
 
-```bash
-cd frontend
-npm run dev
-```
-
-The frontend runs on Vite's local development server.
-
-## Run Backend
-
-```bash
-cd backend
-npm run dev
-```
-
-By default, the backend runs on `http://localhost:5000`.
-
-## Assigned Files
-
-| Teammate | Feature | Frontend Page | Backend Route | Backend Controller | Service |
-| --- | --- | --- | --- | --- | --- |
-| Izzul | User Authentication | `Login-Izzul.jsx`, `Register-Izzul.jsx`, `Profile-Izzul.jsx` | `authRoutes-Izzul.js` | `authController-Izzul.js` | `authService-Izzul.js` |
-| Yuki | Study Planner CRUD | `StudyPlanner-Yuki.jsx` | `plannerRoutes-Yuki.js` | `plannerController-Yuki.js` | `plannerService-Yuki.js` |
-| Zachary | Adaptive Dashboard | `Dashboard-Zachary.jsx` | `dashboardRoutes-Zachary.js` | `dashboardController-Zachary.js` | `dashboardService-Zachary.js` |
-| Rui Feng | Notifications | `Notifications-RuiFeng.jsx` | `notificationRoutes-RuiFeng.js` | `notificationController-RuiFeng.js` | `notificationService-RuiFeng.js` |
-| Kenneth | AI Quiz Generator | `AIQuiz-Kenneth.jsx` | `quizRoutes-Kenneth.js` | `quizController-Kenneth.js` | `quizService-Kenneth.js` |
-| Ryan | GitHub & System Design | System design documentation and repo workflow | Base repo workflow | Base repo workflow | Base repo workflow |
-
-Shared frontend API helper: `frontend/src/services/api.js`
-
-Frontend service files call backend API routes so pages do not need to know backend route details directly.
-
-## Homepage Hub
-
-The homepage is the shared entry point for StudySpark. Each feature card links to the owner's placeholder page so teammates can quickly find the part of the project they are responsible for.
-
-Teammates should build inside their assigned files. Shared files like `Navbar.jsx`, `Layout.jsx`, `App.jsx`, and `Home-Shared.jsx` should only be edited after team agreement.
-
-## Future Database Integration
-
-The project currently uses placeholder/mock data only. No real database is installed or configured yet.
-
-Frontend pages should call frontend service files, and frontend service files should call backend API routes. Backend routes should call controller functions. When the team adds a database later, the backend controllers can be updated to read and write data using Supabase or SQL without rewriting the frontend page structure.
-
-Future database setup should use environment variables in `.env` for database URLs, keys, and credentials. Do not commit real database credentials to the repository.
-
-The placeholder database config file is located at `backend/src/config/database.js`.
-
-## Branch Workflow
-
-- `main` = stable base only
-- `feature/auth` = Izzul
-- `feature/planner` = Yuki
-- `feature/dashboard` = Zachary
-- `feature/notifications` = Rui Feng
-- `feature/ai-quiz` = Kenneth
-- `feature/system-design` = Ryan
-
-Create your feature branch from `main`, work only in your assigned files unless agreed by the team, and open a pull request back into `main` when ready.
+- Do not commit `backend/.env`.
+- Classmates should use the same private Aiven env values if all data should go into the shared database.
+- Docker runs the frontend and backend only. Aiven stays online separately.
