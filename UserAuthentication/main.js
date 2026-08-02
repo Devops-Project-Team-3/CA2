@@ -32,9 +32,10 @@ app.post("/login", async (req, res) => {
     const { username, password } = req.body;
     const user = users.find(u => u.username === username);
     if (!user) return res.send("Invalid username/password");
-    res.redirect("/login");
+
     const isMatch = await bcrypt.compare(password, user.password);
     if (!isMatch) return res.send("Invalid username/password");
+    
     loggedInUser = username;
     res.redirect("/dashboard");
 });
