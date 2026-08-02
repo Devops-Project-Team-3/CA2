@@ -400,6 +400,25 @@ async function getStudySessions(userId) {
 }
 
 async function getDashboardPlaceholder(req, res) {
+  if (!getBearerToken(req)) {
+    return res.status(401).json({
+      message: 'Login is required to load your dashboard data.',
+      data: {
+        configured: hasDatabaseConfig(),
+        user: null,
+        metrics: {
+          completedTopics: 0,
+          totalTopics: 0,
+          progressPercent: 0,
+          studyStreak: 0
+        },
+        sessions: [],
+        recommendations: [],
+        mastery: []
+      }
+    });
+  }
+
   if (!hasDatabaseConfig()) {
     return res.json({
       message: 'Dashboard loaded without database configuration.',

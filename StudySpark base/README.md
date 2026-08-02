@@ -6,6 +6,10 @@ For the easiest setup, use Docker:
 
 [TEAM_RUN_GUIDE.md](TEAM_RUN_GUIDE.md)
 
+Containerisation details for marking:
+
+[CONTAINERIZATION.md](CONTAINERIZATION.md)
+
 ## Quick Start
 
 From the `StudySpark base` folder:

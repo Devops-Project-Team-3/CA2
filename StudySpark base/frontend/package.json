@@ -8,8 +8,8 @@
     "dev:fresh": "vite --force --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "echo \"No frontend lint errors found.\"",
-    "test": "echo \"No frontend tests configured.\""
+    "lint": "eslint --config eslint.config.cjs . --ext .js,.jsx",
+    "test": "npm run build"
   },
   "dependencies": {
     "@vitejs/plugin-react": "^4.3.4",
@@ -17,5 +17,10 @@
     "react-dom": "^18.3.1",
     "react-router-dom": "7.11.0",
     "vite": "6.4.3"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5",
+    "eslint-plugin-react": "^7.37.5",
+    "eslint-plugin-react-hooks": "^7.1.1"
   }
 }

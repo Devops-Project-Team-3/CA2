@@ -7,8 +7,8 @@
     "start": "node src/server.js",
     "dev": "node src/server.js",
     "db:setup": "node src/database/setupDatabase.js",
-    "lint": "echo \"No backend lint errors found.\"",
-    "test": "echo \"No backend tests configured.\""
+    "lint": "eslint --config eslint.config.cjs . --ext .js",
+    "test": "node --test src/tests/*.test.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",
@@ -20,5 +20,8 @@
     "mysql2": "^3.22.6",
     "nodemailer": "^9.0.3",
     "pdf-parse": "^2.4.5"
+  },
+  "devDependencies": {
+    "eslint": "^9.39.5"
   }
 }
