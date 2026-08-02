@@ -8,7 +8,7 @@
     "dev:fresh": "vite --force --host 127.0.0.1",
     "build": "vite build",
     "preview": "vite preview",
-    "lint": "eslint . --ext .js,.jsx",
+    "lint": "eslint --config eslint.config.cjs . --ext .js,.jsx",
     "test": "npm run build"
   },
   "dependencies": {
