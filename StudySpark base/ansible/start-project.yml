@@ -1,0 +1,40 @@
+---
+- name: Start StudySpark Application
+  hosts: studyspark
+  gather_facts: false
+
+  vars:
+    project_path: "/mnt/d/DevOps CA2 - Copy/CA2/StudySpark base"
+
+  tasks:
+    - name: Check whether Docker is running
+      command: docker info
+      changed_when: false
+
+    - name: Start StudySpark containers
+      command: docker compose up -d
+      args:
+        chdir: "{{ project_path }}"
+      register: start_result
+
+    - name: Wait for containers to start
+      pause:
+        seconds: 5
+
+    - name: Check container status
+      command: docker compose ps
+      args:
+        chdir: "{{ project_path }}"
+      register: container_status
+      changed_when: false
+
+    - name: Display container status
+      debug:
+        var: container_status.stdout_lines
+
+    - name: Display application links
+      debug:
+        msg:
+          - "StudySpark started successfully."
+          - "Frontend: http://localhost:5173"
+          - "Backend: http://localhost:5000"
