@@ -1,4 +1,4 @@
-export default {
+module.exports = {
   env: {
     node: true,
     es2024: true,
@@ -9,7 +9,7 @@ export default {
     sourceType: "module",
   },
   rules: {
-    "no-unused-vars": ["warn", { "argsIgnorePattern": "^_" }],
+    "no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],
     "no-console": "off",
   },
 };
