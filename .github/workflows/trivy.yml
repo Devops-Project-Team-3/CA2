@@ -1,0 +1,30 @@
+name: Trivy Security Scan
+
+on:
+  # Run on every pull request and push to main
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+  # Optional: schedule nightly scans
+  schedule:
+    - cron: '0 2 * * *'  # every day at 2 AM UTC
+
+jobs:
+  trivy-scan:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Docker
+        uses: docker/setup-buildx-action@v3
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@0.20.0
+        with:
+          scan-type: fs
+          ignore-unfixed: true
+          format: table
+          exit-code: 1
+          severity: CRITICAL,HIGH
