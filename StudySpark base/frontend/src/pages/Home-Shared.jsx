@@ -122,7 +122,7 @@ function HomeShared() {
       <section className="home-hero">
         <div className="home-intro">
           <p className="home-kicker">Adaptive Study Planner</p>
-          <h1>StudySpark</h1>
+          <h1>Rui Feng</h1>
           <p className="home-description">
             StudySpark helps students plan study sessions, track progress, and revise smarter using
             adaptive recommendations.
